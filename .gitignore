@@ -1,0 +1,11 @@
+# Build outputs
+bin/
+obj/
+wwwroot/
+
+# Local configuration & user files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
