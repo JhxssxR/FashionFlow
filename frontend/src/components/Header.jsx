@@ -12,7 +12,7 @@ const Header = ({ onLoginClick }) => {
       </div>
       <header className="header">
         <div className="header-logo">
-          <img src="/assets/new logo.jpg" alt="FashionFlow Logo" className="logo-img" style={{ height: '60px', width: 'auto' }} />
+          <img src="/assets/no background logo.png" alt="FashionFlow Logo" className="logo-img" style={{ height: '60px', width: 'auto' }} />
         </div>
         <nav className="header-nav">
           <ul>

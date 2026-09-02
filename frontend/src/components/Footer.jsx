@@ -4,7 +4,7 @@ const Footer = () => {
   return (
     <footer className="footer">
       <div className="footer-left">
-        <img src="/assets/new logo.jpg" alt="FashionFlow Logo" className="footer-logo-img" style={{ height: '60px', width: 'auto' }} />
+        <img src="/assets/no background logo.png" alt="FashionFlow Logo" className="footer-logo-img" style={{ height: '60px', width: 'auto' }} />
       </div>
       <div className="footer-links">
         <a href="#about">ABOUT</a>

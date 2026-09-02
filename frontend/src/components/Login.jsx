@@ -11,8 +11,9 @@ const Login = ({ onBack }) => {
 
   return (
     <div className="login-container">
-      {/* Left panel with background image and text overlay */}
+      {/* Left panel with full image and text overlay */}
       <div className="login-left">
+        <img src="/assets/new login image.jpg" alt="FashionFlow - Built for Fashion" className="login-left-img" />
         <div className="login-left-overlay">
           <div className="login-left-content">
             <span className="login-left-tag">ERP &amp; CRM &mdash; CLOTHING BUSINESS</span>
@@ -20,8 +21,8 @@ const Login = ({ onBack }) => {
               Built for<br />Fashion.<br />Designed<br />for Scale.
             </h1>
             <p className="login-left-desc">
-              Every module your clothing business needs —<br />
-              inventory, purchasing, sales, and more — unified<br />
+              Every module your clothing business needs &mdash;<br />
+              inventory, purchasing, sales, and more &mdash; unified<br />
               in one place.
             </p>
           </div>
@@ -33,26 +34,20 @@ const Login = ({ onBack }) => {
         {/* Top Navigation Bar */}
         <div className="login-nav">
           <div className="login-nav-left">
-            <div className="login-icon-container">
-              <img src="/assets/no background logo.png" alt="FashionFlow" className="login-icon-img" />
-            </div>
-            <span className="login-icon-text">FashionFlow</span>
+            <img src="/assets/no background logo.png" alt="FashionFlow" className="login-nav-logo" />
           </div>
           <div className="login-nav-right">
             <button className="back-store-btn" onClick={onBack}>
-              + BACK TO STORE
+              &larr; BACK TO STORE
             </button>
           </div>
         </div>
 
         {/* Form Container */}
         <div className="login-form-wrapper">
-          {/* Centered Brand Box */}
-          <div className="login-brand-box">
-            <div className="login-brand-icon-container">
-              <img src="/assets/no background logo.png" alt="FashionFlow" className="login-brand-icon-img" />
-            </div>
-            <span className="login-brand-text">FashionFlow</span>
+          {/* Centered Brand Logo */}
+          <div className="login-center-logo">
+            <img src="/assets/no background logo.png" alt="FashionFlow" className="login-brand-img" />
           </div>
 
           <div className="login-form-header">
