@@ -7,6 +7,12 @@ import Footer from './components/Footer'
 import Login from './components/Login'
 import './App.css'
 
+// The app scrolls itself (hash-driven category jumps in the product section),
+// so the browser's scroll restoration must not fight it on reloads.
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual'
+}
+
 function App() {
   const [view, setView] = useState('store')
 
@@ -25,6 +31,34 @@ function App() {
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
+
+  // Scroll reveal animation observer
+  useEffect(() => {
+    if (view !== 'store') return
+
+    const observerCallback = (entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+          // Once revealed, unobserve to keep it visible
+          observer.unobserve(entry.target)
+        }
+      })
+    }
+
+    const observer = new IntersectionObserver(observerCallback, {
+      root: null,
+      threshold: 0.12,
+      rootMargin: '0px 0px -40px 0px'
+    })
+
+    const elements = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-fade')
+    elements.forEach((el) => observer.observe(el))
+
+    return () => {
+      elements.forEach((el) => observer.unobserve(el))
+    }
+  }, [view])
 
   const navigateTo = (newView) => {
     if (newView === 'login') {

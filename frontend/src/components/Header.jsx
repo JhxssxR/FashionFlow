@@ -4,11 +4,32 @@ const Header = ({ onLoginClick }) => {
   return (
     <>
       <div className="top-banner">
-        <span>FREE SHIPPING ₱3,000+</span>
-        <span>·</span>
-        <span>NEW IN EVERY FRIDAY</span>
-        <span>·</span>
-        <span>FREE RETURNS</span>
+        <div className="top-banner-track">
+          <div className="top-banner-content">
+            <span>FREE SHIPPING ₱3,000+</span>
+            <span>·</span>
+            <span>NEW ARRIVALS EVERY FRIDAY</span>
+            <span>·</span>
+            <span>FREE RETURNS</span>
+            <span>·</span>
+            <span>LOYALTY POINTS ON EVERY PURCHASE</span>
+            <span>·</span>
+            <span>USE CODE FF200 FOR ₱200 OFF</span>
+            <span>·</span>
+          </div>
+          <div className="top-banner-content" aria-hidden="true">
+            <span>FREE SHIPPING ₱3,000+</span>
+            <span>·</span>
+            <span>NEW ARRIVALS EVERY FRIDAY</span>
+            <span>·</span>
+            <span>FREE RETURNS</span>
+            <span>·</span>
+            <span>LOYALTY POINTS ON EVERY PURCHASE</span>
+            <span>·</span>
+            <span>USE CODE FF200 FOR ₱200 OFF</span>
+            <span>·</span>
+          </div>
+        </div>
       </div>
       <header className="header">
         <div className="header-logo">

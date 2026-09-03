@@ -13,7 +13,8 @@ const Login = ({ onBack }) => {
     <div className="login-container">
       {/* Left panel with full image and text overlay */}
       <div className="login-left">
-        <img src="/assets/new login image.jpg" alt="FashionFlow - Built for Fashion" className="login-left-img" />
+        <img src="/assets/login-editorial.jpg" alt="" aria-hidden="true" className="login-left-img-blur" />
+        <img src="/assets/login-editorial.jpg" alt="Flat lay of clothing inventory — trousers, tee, watch and sneakers" className="login-left-img" />
         <div className="login-left-overlay">
           <div className="login-left-content">
             <span className="login-left-tag">ERP &amp; CRM &mdash; CLOTHING BUSINESS</span>
@@ -70,11 +71,14 @@ const Login = ({ onBack }) => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">PASSWORD</label>
+              <div className="label-row">
+                <label htmlFor="password">PASSWORD</label>
+                <a href="#forgot-password" className="forgot-link">FORGOT PASSWORD?</a>
+              </div>
               <input
                 type="password"
                 id="password"
-                placeholder="........"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

@@ -3,7 +3,7 @@ import React from 'react';
 const BannerCTA = () => {
   return (
     <section className="banner-cta">
-      <div className="banner-content">
+      <div className="banner-content reveal-left">
         <p className="banner-subtitle">FASHIONFLOW REWARDS</p>
         <h2 className="banner-title">Earn points.<br/>Unlock exclusives.</h2>
         <p className="banner-description">
@@ -13,8 +13,8 @@ const BannerCTA = () => {
         </p>
         <button className="btn btn-primary-gold">JOIN NOW</button>
       </div>
-      <div className="banner-image">
-        <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=1200&auto=format&fit=crop" alt="Fashion Clothes Rack" />
+      <div className="banner-image reveal-right">
+        <img src="https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=1200&auto=format&fit=crop" alt="Fashion Clothes Rack" loading="lazy" />
       </div>
     </section>
   );
