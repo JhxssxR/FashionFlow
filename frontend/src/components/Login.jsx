@@ -1,12 +1,24 @@
 import React, { useState } from 'react';
+import { ROLE_CREDENTIALS, findRoleByEmail } from '../data/dashboardData';
 
 const Login = ({ onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert(`Signing in as: ${email}`);
+    const match = findRoleByEmail(email);
+    if (match) {
+      setError('');
+      window.location.hash = `dashboard/${match.role}`;
+    } else {
+      setError('No FashionFlow account found for that email. Try a demo account below.');
+    }
+  };
+
+  const goToRole = (role) => {
+    window.location.hash = `dashboard/${role}`;
   };
 
   return (
@@ -85,13 +97,23 @@ const Login = ({ onBack }) => {
               />
             </div>
 
+            {error && <p className="login-error">{error}</p>}
+
             <button type="submit" className="login-submit-btn">
               SIGN IN &rarr;
             </button>
           </form>
 
           <div className="login-divider">
-            <span>OR</span>
+            <span>DEMO ACCOUNTS</span>
+          </div>
+
+          <div className="login-demo-chips">
+            {ROLE_CREDENTIALS.map((cred) => (
+              <button key={cred.role} className="login-chip" onClick={() => goToRole(cred.role)}>
+                {cred.label}
+              </button>
+            ))}
           </div>
 
           <button className="login-guest-btn" onClick={onBack}>

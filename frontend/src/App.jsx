@@ -5,7 +5,9 @@ import NewArrivals from './components/NewArrivals'
 import BannerCTA from './components/BannerCTA'
 import Footer from './components/Footer'
 import Login from './components/Login'
+import DashboardRouter from './components/dashboard/DashboardRouter'
 import './App.css'
+import './Dashboard.css'
 
 // The app scrolls itself (hash-driven category jumps in the product section),
 // so the browser's scroll restoration must not fight it on reloads.
@@ -15,11 +17,16 @@ if ('scrollRestoration' in history) {
 
 function App() {
   const [view, setView] = useState('store')
+  const [dashRole, setDashRole] = useState('admin')
 
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#login') {
+      const hash = window.location.hash
+      if (hash === '#login') {
         setView('login')
+      } else if (hash.startsWith('#dashboard/')) {
+        setDashRole(hash.replace('#dashboard/', ''))
+        setView('dashboard')
       } else {
         setView('store')
       }
@@ -70,6 +77,10 @@ function App() {
 
   if (view === 'login') {
     return <Login onBack={() => navigateTo('store')} />
+  }
+
+  if (view === 'dashboard') {
+    return <DashboardRouter role={dashRole} />
   }
 
   return (
