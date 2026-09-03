@@ -88,6 +88,8 @@ const ROLE_CONFIG = {
 const DashboardLayout = ({ role, children }) => {
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.admin;
   const user = USERS[role] || USERS.admin;
+  const [activePage, setActivePage] = React.useState(config.activePage);
+  const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
 
   return (
     <div className="dash-shell">
@@ -102,8 +104,8 @@ const DashboardLayout = ({ role, children }) => {
             <a
               key={page.id}
               href="#"
-              onClick={(e) => e.preventDefault()}
-              className={`dash-nav-item${page.id === config.activePage ? ' active' : ''}`}
+              onClick={(e) => { e.preventDefault(); setActivePage(page.id); }}
+              className={`dash-nav-item${page.id === activePage ? ' active' : ''}`}
             >
               {page.label}
             </a>
@@ -138,7 +140,7 @@ const DashboardLayout = ({ role, children }) => {
             <img src="/assets/no background logo.png" alt="FashionFlow" />
           </a>
           <div>
-            <h1 className="dash-page-title">{config.pages.find((p) => p.id === config.activePage)?.label}</h1>
+            <h1 className="dash-page-title">{currentPage.label}</h1>
             <p className="dash-page-date">
               {new Date(2026, 8, 4).toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
@@ -148,7 +150,7 @@ const DashboardLayout = ({ role, children }) => {
             <span className="dash-avatar">{user.initials}</span>
           </div>
         </header>
-        <main className="dash-content">{children}</main>
+        <main className="dash-content">{children(activePage)}</main>
       </div>
     </div>
   );

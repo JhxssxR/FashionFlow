@@ -1,115 +1,192 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, StatusBadge } from './DashboardShared';
-import {
-  peso, peso2, SUPPLIER_INCOMING_POS, SUPPLIER_DELIVERY_HISTORY,
-  SUPPLIER_CATALOG, CHART_COLORS
-} from '../../data/dashboardData';
+import { StatCard, Panel, DataTable, EmptyState } from './DashboardShared';
+import { peso2, CHART_COLORS } from '../../data/dashboardData';
 
-const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.green, CHART_COLORS.red];
 
-const SupplierDashboard = () => {
-  const deliveredCount = SUPPLIER_DELIVERY_HISTORY.length;
-  const deliveredValue = SUPPLIER_DELIVERY_HISTORY.reduce((s, d) => s + d.amount, 0);
-  const incomingValue = SUPPLIER_INCOMING_POS.reduce((s, p) => s + p.amount, 0);
+const deliveryMix = [
+  { name: 'Delivered', value: 4 },
+  { name: 'In Transit', value: 1 },
+  { name: 'Pending', value: 1 }
+];
 
-  const deliveryMix = [
-    { name: 'Delivered', value: deliveredCount },
-    { name: 'In Transit', value: SUPPLIER_INCOMING_POS.filter((p) => p.status === 'In Transit').length },
-    { name: 'Pending', value: SUPPLIER_INCOMING_POS.filter((p) => p.status === 'Pending').length }
-  ].filter((d) => d.value > 0);
+const SupplierDashboard = () => (
+  <DashboardLayout role="supplier">
+    {(page) => {
+      if (page === 'orders') {
+        return (
+          <>
+            <div className="panel-grid panel-grid-2-1">
+              <Panel title="Order pipeline" subtitle="Planned distribution once purchasing begins">
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie
+                      data={deliveryMix}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={62}
+                      outerRadius={95}
+                      paddingAngle={2}
+                      stroke="none"
+                    >
+                      {deliveryMix.map((entry, i) => (
+                        <Cell key={entry.name} fill={donutColors[i % donutColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <ul className="legend-list">
+                  {deliveryMix.map((d, i) => (
+                    <li key={d.name}>
+                      <span className="legend-dot" style={{ background: donutColors[i % donutColors.length] }} />
+                      {d.name} — {d.value}
+                    </li>
+                  ))}
+                </ul>
+              </Panel>
+              <Panel title="How the portal works" subtitle="Your side of every purchase order">
+                <ol className="steps-list">
+                  <li>Receive the purchase order issued by the Purchasing Officer.</li>
+                  <li>Accept it and prepare the items for delivery.</li>
+                  <li>Update the delivery status — In Transit, then Delivered.</li>
+                  <li>Payment is settled by the Accounting module.</li>
+                </ol>
+              </Panel>
+            </div>
+            <Panel title="Purchase orders for your company" subtitle="Accept, prepare and update delivery status">
+              <DataTable
+                keyField="id"
+                emptyTitle="NO PURCHASE ORDERS YET"
+                emptyNote="When FashionFlow issues a purchase order to you, it will appear here for acceptance and status updates."
+                columns={[
+                  { key: 'id', label: 'Reference' },
+                  { key: 'items', label: 'Items' },
+                  { key: 'amount', label: 'Amount' },
+                  { key: 'status', label: 'Status' }
+                ]}
+                rows={[]}
+              />
+            </Panel>
+          </>
+        );
+      }
 
-  return (
-    <DashboardLayout role="supplier">
-      <div className="stat-grid">
-        <StatCard label="OPEN PURCHASE ORDERS" value={SUPPLIER_INCOMING_POS.length} sub={peso(incomingValue) + ' total value'} />
-        <StatCard label="DELIVERIES COMPLETED" value={deliveredCount} sub="Last 60 days" tone="green" />
-        <StatCard label="LIFETIME DELIVERED VALUE" value={peso(deliveredValue)} sub="With FashionFlow" tone="dark" />
-        <StatCard label="ON-TIME RATE" value="96%" sub="2 points above network average" tone="purple" />
-      </div>
+      if (page === 'catalog') {
+        return (
+          <Panel title="My products" subtitle="Catalog offered to FashionFlow" action={<a href="#" className="panel-link" onClick={(e) => e.preventDefault()}>+ ADD PRODUCT</a>}>
+            <DataTable
+              keyField="name"
+              emptyTitle="NO PRODUCTS LISTED YET"
+              emptyNote="List the products you supply — variants, unit cost, minimum order quantity and lead time."
+              columns={[
+                { key: 'name', label: 'Product' },
+                { key: 'variant', label: 'Variants' },
+                { key: 'unitCost', label: 'Unit cost' },
+                { key: 'moq', label: 'MOQ' },
+                { key: 'leadTime', label: 'Lead time' }
+              ]}
+              rows={[]}
+            />
+          </Panel>
+        );
+      }
 
-      <div className="panel-grid panel-grid-2-1">
-        <Panel title="Purchase orders for Denim Republic PH" subtitle="Accept, prepare and update delivery status" action={<a href="#" className="panel-link" onClick={(e) => e.preventDefault()}>RESPOND TO ALL →</a>}>
-          <DataTable
-            keyField="id"
-            columns={[
-              { key: 'id', label: 'Reference' },
-              { key: 'items', label: 'Items' },
-              { key: 'date', label: 'Issued', width: '130px' },
-              { key: 'amount', label: 'Amount', render: (r) => <strong>{peso2(r.amount)}</strong> },
-              { key: 'status', label: 'Status', width: '130px', render: (r) => <StatusBadge status={r.status} /> },
-              {
-                key: 'action', label: '', width: '130px', render: (r) =>
-                  r.status === 'Pending' ? <button className="mini-btn" onClick={(e) => e.preventDefault()}>ACCEPT</button> : null
-              }
-            ]}
-            rows={SUPPLIER_INCOMING_POS}
-          />
-        </Panel>
+      if (page === 'payments') {
+        return (
+          <>
+            <div className="stat-grid">
+              <StatCard label="LIFETIME DELIVERED VALUE" value={peso2(0)} sub="With FashionFlow" />
+              <StatCard label="ON-TIME RATE" value="96%" sub="2 points above network average" tone="purple" />
+            </div>
+            <Panel title="Payments" subtitle="Settled purchase orders">
+              <DataTable
+                keyField="id"
+                emptyTitle="NO PAYMENTS YET"
+                emptyNote="Payments released by the Accounting module for your delivered orders will appear here."
+                columns={[
+                  { key: 'id', label: 'Reference' },
+                  { key: 'items', label: 'Items' },
+                  { key: 'amount', label: 'Amount' },
+                  { key: 'status', label: 'Status' }
+                ]}
+                rows={[]}
+              />
+            </Panel>
+          </>
+        );
+      }
 
-        <Panel title="Order pipeline" subtitle="Where your POs stand">
-          <ResponsiveContainer width="100%" height={230}>
-            <PieChart>
-              <Pie
-                data={deliveryMix}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={58}
-                outerRadius={90}
-                paddingAngle={2}
-                stroke="none"
-              >
-                {deliveryMix.map((entry, i) => (
-                  <Cell key={entry.name} fill={donutColors[i % donutColors.length]} />
+      // overview — Portal Overview
+      return (
+        <>
+          <div className="stat-grid">
+            <StatCard label="OPEN PURCHASE ORDERS" value="0" sub="No orders issued yet" />
+            <StatCard label="DELIVERIES COMPLETED" value="0" sub="Last 60 days" tone="green" />
+            <StatCard label="ON-TIME RATE" value="96%" sub="2 points above network average" tone="purple" />
+            <StatCard label="CATALOG ITEMS" value="0" sub="Products listed for supply" tone="dark" />
+          </div>
+
+          <div className="panel-grid panel-grid-2-1">
+            <Panel title="Order pipeline" subtitle="Planned distribution once purchasing begins">
+              <ResponsiveContainer width="100%" height={230}>
+                <PieChart>
+                  <Pie
+                    data={deliveryMix}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={58}
+                    outerRadius={90}
+                    paddingAngle={2}
+                    stroke="none"
+                  >
+                    {deliveryMix.map((entry, i) => (
+                      <Cell key={entry.name} fill={donutColors[i % donutColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <ul className="legend-list">
+                {deliveryMix.map((d, i) => (
+                  <li key={d.name}>
+                    <span className="legend-dot" style={{ background: donutColors[i % donutColors.length] }} />
+                    {d.name} — {d.value}
+                  </li>
                 ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-          <ul className="legend-list">
-            {deliveryMix.map((d, i) => (
-              <li key={d.name}>
-                <span className="legend-dot" style={{ background: donutColors[i % donutColors.length] }} />
-                {d.name} — {d.value}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
+              </ul>
+            </Panel>
 
-      <div className="panel-grid panel-grid-1-1">
-        <Panel title="My supplied products" subtitle="Catalog offered to FashionFlow">
-          <DataTable
-            keyField="name"
-            columns={[
-              { key: 'name', label: 'Product' },
-              { key: 'variant', label: 'Variants' },
-              { key: 'unitCost', label: 'Unit cost', render: (r) => peso2(r.unitCost) },
-              { key: 'moq', label: 'MOQ', render: (r) => `${r.moq} units` },
-              { key: 'leadTime', label: 'Lead time' }
-            ]}
-            rows={SUPPLIER_CATALOG}
-          />
-        </Panel>
+            <Panel title="How the portal works" subtitle="Your side of every purchase order">
+              <ol className="steps-list">
+                <li>Receive the purchase order issued by the Purchasing Officer.</li>
+                <li>Accept it and prepare the items for delivery.</li>
+                <li>Update the delivery status — In Transit, then Delivered.</li>
+                <li>Payment is settled by the Accounting module.</li>
+              </ol>
+            </Panel>
+          </div>
 
-        <Panel title="Delivery history" subtitle="Completed orders" action={<a href="#" className="panel-link" onClick={(e) => e.preventDefault()}>UPDATE STATUS →</a>}>
-          <DataTable
-            keyField="id"
-            columns={[
-              { key: 'id', label: 'Reference' },
-              { key: 'items', label: 'Items' },
-              { key: 'delivered', label: 'Delivered', width: '140px' },
-              { key: 'amount', label: 'Amount', render: (r) => <strong>{peso2(r.amount)}</strong> },
-              { key: 'status', label: 'Status', width: '120px', render: (r) => <StatusBadge status={r.status} /> }
-            ]}
-            rows={SUPPLIER_DELIVERY_HISTORY}
-          />
-        </Panel>
-      </div>
-    </DashboardLayout>
-  );
-};
+          <Panel title="Purchase orders for your company" subtitle="Accept, prepare and update delivery status">
+            <DataTable
+              keyField="id"
+              emptyTitle="NO PURCHASE ORDERS YET"
+              emptyNote="When FashionFlow issues a purchase order to you, it will appear here for acceptance and status updates."
+              columns={[
+                { key: 'id', label: 'Reference' },
+                { key: 'items', label: 'Items' },
+                { key: 'amount', label: 'Amount' },
+                { key: 'status', label: 'Status' }
+              ]}
+              rows={[]}
+            />
+          </Panel>
+        </>
+      );
+    }}
+  </DashboardLayout>
+);
 
 export default SupplierDashboard;

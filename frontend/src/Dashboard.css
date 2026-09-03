@@ -679,6 +679,160 @@
   background: rgba(205, 168, 88, 0.08);
 }
 
+/* ---------- Empty states ---------- */
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  border: 1px dashed #d9d9d4;
+  border-radius: 12px;
+  padding: 36px 24px;
+  background: #faf9f7;
+}
+
+.table-empty-title {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #8a8a8a;
+}
+
+.table-empty-note {
+  font-size: 0.8rem;
+  color: #a3a3a3;
+  max-width: 460px;
+  line-height: 1.55;
+}
+
+/* ---------- Settings form ---------- */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 20px;
+}
+
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-row label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  color: #8a8a8a;
+}
+
+.settings-row input {
+  padding: 10px 14px;
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  color: #111;
+  background: #faf9f7;
+  border: 1px solid #e7e7e4;
+  border-radius: 8px;
+  outline: none;
+}
+
+/* ---------- POS terminal skeleton ---------- */
+.pos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.pos-product {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  background: #faf9f7;
+  border: 1px solid #e7e7e4;
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pos-product:hover {
+  border-color: var(--accent-color);
+  background: rgba(205, 168, 88, 0.06);
+}
+
+.pos-product strong {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pos-product span {
+  font-size: 0.68rem;
+  color: #8a8a8a;
+}
+
+.pos-product em {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-top: 3px;
+}
+
+.pos-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e7e7e4;
+}
+
+.pos-total span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: #8a8a8a;
+}
+
+.pos-total strong {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+/* ---------- Steps list ---------- */
+.steps-list {
+  margin: 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.steps-list li {
+  counter-increment: step;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.84rem;
+  color: #555;
+  line-height: 1.5;
+}
+
+.steps-list li::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1180px) {
   .stat-grid {

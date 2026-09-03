@@ -30,7 +30,10 @@ export function StatusBadge({ status }) {
   return <span className={`status-badge status-${statusTone(status)}`}>{status}</span>;
 }
 
-export function DataTable({ columns, rows, keyField }) {
+export function DataTable({ columns, rows, keyField, emptyTitle, emptyNote }) {
+  if (!rows || rows.length === 0) {
+    return <EmptyState title={emptyTitle} note={emptyNote} />;
+  }
   return (
     <table className="data-table">
       <thead>
@@ -50,5 +53,16 @@ export function DataTable({ columns, rows, keyField }) {
         ))}
       </tbody>
     </table>
+  );
+}
+
+export function EmptyState({ title = 'NO RECORDS YET', note }) {
+  return (
+    <div className="table-empty">
+      <strong className="table-empty-title">{title}</strong>
+      <span className="table-empty-note">
+        {note || 'This module is wired and ready — records will appear here once the C# database is connected.'}
+      </span>
+    </div>
   );
 }
