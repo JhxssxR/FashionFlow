@@ -1531,3 +1531,35 @@
 .checkout-card.success .checkout-btn {
   margin-top: 12px;
 }
+
+/* ---------- Auth tabs (sign in / create account) ---------- */
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e0e0dd;
+  border-radius: 8px;
+  padding: 10px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  color: #555;
+}
+
+.auth-tab.active {
+  background: #0d0d0d;
+  border-color: #0d0d0d;
+  color: #fff;
+}
+
+.checkout-form .auth-tab.active {
+  background: #cda858;
+  border-color: #cda858;
+  color: #fff;
+}

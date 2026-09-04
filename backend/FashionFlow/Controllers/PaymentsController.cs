@@ -21,38 +21,19 @@ public class PaymentsController(
 {
     private string PublicBaseUrl => config["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host.Value}";
 
-    // Places an order and returns the payment URL. Works for logged-in
-    // customers (linked by their token) and guests (find-or-create by email).
+    // Places an order and returns the payment URL. Requires a signed-in
+    // Customer account — identity and loyalty come from the token, and the
+    // storefront blocks checkout before this point anyway (defence in depth).
     [HttpPost("checkout")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Customer,Admin")]
     public async Task<IActionResult> Checkout(CheckoutRequest req)
     {
-        var email = req.Email.Trim().ToLowerInvariant();
-        Customer? customer = null;
-
-        var tokenCustomerId = User.CustomerId();
-        if (tokenCustomerId is not null)
-        {
-            customer = await db.Customers.FindAsync(tokenCustomerId);
-        }
+        var customerId = User.CustomerId();
+        if (customerId is null)
+            return Unauthorized(new { message = "Only customer accounts can place orders. Register or sign in first." });
+        var customer = await db.Customers.FindAsync(customerId);
         if (customer is null)
-        {
-            customer = await db.Customers.FirstOrDefaultAsync(c => c.Email == email);
-            if (customer is null)
-            {
-                customer = new Customer
-                {
-                    Name = char.ToUpper(email.Split('@')[0][0]) + email.Split('@')[0][1..],
-                    Email = email,
-                    Tier = "Bronze",
-                    JoinedDate = DateOnly.FromDateTime(DateTime.Today)
-                };
-                db.Customers.Add(customer);
-                db.SystemLogs.Add(Audit.Log(email, "Customer registered via online checkout", "Sales"));
-            }
-        }
-        // Persist first so a new guest customer has its identity before the order references it.
-        await db.SaveChangesAsync();
+            return Unauthorized(new { message = "This account is not linked to a customer profile." });
 
         // Merge duplicate lines and validate against live stock.
         var merged = req.Items.GroupBy(i => i.ProductId)
@@ -79,7 +60,7 @@ public class PaymentsController(
         {
             OrderNumber = orderNumber,
             CustomerId = customer.CustomerId,
-            GuestEmail = email,
+            GuestEmail = customer.Email,
             ShippingAddress = req.ShippingAddress.Trim(),
             ItemsSummary = string.Join(", ", merged.Select(m => $"{products[m.ProductId].Name} ×{m.Quantity}")),
             Subtotal = subtotal,
@@ -93,8 +74,7 @@ public class PaymentsController(
         }
 
         db.Orders.Add(order);
-        db.SystemLogs.Add(Audit.Log(
-            User.Identity?.IsAuthenticated == true ? User.Email() : email,
+        db.SystemLogs.Add(Audit.Log(User.Email(),
             $"Order {orderNumber} placed — {order.ItemsSummary} (₱{subtotal:N0})", "Sales"));
         await db.SaveChangesAsync();
 

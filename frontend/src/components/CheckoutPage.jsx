@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
-import { api, getAuth } from '../api/client';
+import { api, getAuth, saveAuth } from '../api/client';
 import { peso, peso2 } from '../utils';
 
 // Storefront checkout. route is the current hash:
-//   #checkout                     → order form
+//   #checkout                     → order form (requires a signed-in Customer)
 //   #checkout/mock-pay/FF-10242   → Development stand-in for PayMongo's page
 //   #checkout/success/FF-10242    → payment confirmed
 //   #checkout/cancel/FF-10242     → payment abandoned (order stays Pending)
@@ -19,10 +19,94 @@ const CheckoutPage = ({ route }) => {
   return <FormView />;
 };
 
+// Checkout requires a customer account: guests get an inline sign-in /
+// register panel right here, so the cart is never lost.
 const FormView = () => {
   const cart = useCart();
+  const [authTick, setAuthTick] = useState(0);
   const auth = getAuth();
-  const [email, setEmail] = useState(auth?.user?.email || '');
+  const isCustomer = auth?.user?.role === 'Customer';
+
+  if (!isCustomer) {
+    return (
+      <section className="checkout-page">
+        <div className="checkout-card">
+          <span className="login-form-tag">SIGN IN TO CONTINUE</span>
+          <h2 className="checkout-title">Your cart is saved.</h2>
+          <p className="checkout-sub">
+            Sign in or create a free account to place your order — loyalty points
+            and purchase history are tied to your account.
+          </p>
+          <AuthPanel onAuthed={() => setAuthTick((t) => t + 1)} />
+        </div>
+      </section>
+    );
+  }
+
+  return <OrderForm key={authTick} />;
+};
+
+const AuthPanel = ({ onAuthed }) => {
+  const [mode, setMode] = useState('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const res = mode === 'signin'
+        ? await api('/api/auth/login', { method: 'POST', body: { email, password } })
+        : await api('/api/auth/register', { method: 'POST', body: { name, email, password } });
+      saveAuth({ token: res.token, user: res.user });
+      if (res.user.role !== 'Customer') {
+        // Staff accounts can't shop — tell them instead of looping back.
+        setError('That account is a staff account — sign in with a customer account to check out.');
+        setBusy(false);
+        return;
+      }
+      onAuthed();
+    } catch (ex) {
+      setError(ex.message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="checkout-form">
+      <div className="auth-tabs">
+        <button type="button" className={`auth-tab${mode === 'signin' ? ' active' : ''}`} onClick={() => setMode('signin')}>SIGN IN</button>
+        <button type="button" className={`auth-tab${mode === 'register' ? ' active' : ''}`} onClick={() => setMode('register')}>CREATE ACCOUNT</button>
+      </div>
+      {mode === 'register' && (
+        <div className="form-group">
+          <label htmlFor="gate-name">FULL NAME</label>
+          <input id="gate-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Dela Cruz" required />
+        </div>
+      )}
+      <div className="form-group">
+        <label htmlFor="gate-email">EMAIL</label>
+        <input id="gate-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+      </div>
+      <div className="form-group">
+        <label htmlFor="gate-password">PASSWORD</label>
+        <input id="gate-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'} required minLength={6} />
+      </div>
+      {error && <p className="login-error">{error}</p>}
+      <button type="submit" className="checkout-btn" disabled={busy}>
+        {busy ? 'PLEASE WAIT…' : mode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →'}
+      </button>
+    </form>
+  );
+};
+
+const OrderForm = () => {
+  const cart = useCart();
+  const auth = getAuth();
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -35,7 +119,6 @@ const FormView = () => {
       const res = await api('/api/checkout', {
         method: 'POST',
         body: {
-          email,
           shippingAddress: address,
           items: cart.items.map((l) => ({ productId: l.id, quantity: l.quantity }))
         }
@@ -70,7 +153,10 @@ const FormView = () => {
       <div className="checkout-card">
         <span className="login-form-tag">CHECKOUT</span>
         <h2 className="checkout-title">Almost yours.</h2>
-        <p className="checkout-sub">Pay with GCash, Maya or card via PayMongo. Earn 1 point per ₱100.</p>
+        <p className="checkout-sub">
+          Ordering as <strong>{auth?.user?.name}</strong> — pay with GCash, Maya or card via
+          PayMongo and earn 1 point per ₱100.
+        </p>
 
         <div className="checkout-summary">
           {cart.items.map((l) => (
@@ -86,11 +172,6 @@ const FormView = () => {
         </div>
 
         <form onSubmit={submit} className="checkout-form">
-          <div className="form-group">
-            <label htmlFor="co-email">EMAIL</label>
-            <input id="co-email" type="email" value={email} placeholder="you@example.com"
-              onChange={(e) => setEmail(e.target.value)} required />
-          </div>
           <div className="form-group">
             <label htmlFor="co-address">SHIPPING ADDRESS</label>
             <textarea id="co-address" rows={3} value={address} placeholder="House no., street, barangay, city"
@@ -113,14 +194,12 @@ const MockPayView = ({ orderNumber }) => {
   const cart = useCart();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const done = useRef(false);
 
   const pay = async () => {
     setBusy(true);
     setError('');
     try {
       await api('/api/payments/mock-confirm', { method: 'POST', body: { orderNumber } });
-      done.current = true;
       cart.clear();
       window.location.hash = `checkout/success/${orderNumber}`;
     } catch (ex) {

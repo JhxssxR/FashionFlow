@@ -61,4 +61,49 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
         var user = await db.Users.FindAsync(User.UserId());
         return user is null ? Unauthorized(new { message = "Unknown account." }) : Ok(AuthPayload.For(user));
     }
+
+    // Storefront self-registration — always creates a Customer account linked
+    // to a CRM profile, so loyalty points and purchase history land on it.
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> Register(RegisterRequest req)
+    {
+        var email = req.Email.Trim().ToLowerInvariant();
+        if (await db.Users.AnyAsync(u => u.Email == email))
+            return Conflict(new { message = "An account with that email already exists — try signing in instead." });
+
+        var name = req.Name.Trim();
+
+        var customer = await db.Customers.FirstOrDefaultAsync(c => c.Email == email);
+        if (customer is null)
+        {
+            customer = new Customer
+            {
+                Name = name,
+                Email = email,
+                Tier = "Bronze",
+                JoinedDate = DateOnly.FromDateTime(DateTime.Today)
+            };
+            db.Customers.Add(customer);
+            await db.SaveChangesAsync(); // need the CustomerId for the user link
+        }
+
+        var user = new User
+        {
+            Name = name,
+            Email = email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 10),
+            Role = "Customer",
+            DashboardKey = Roles.DashboardKeyFor("Customer"),
+            Status = "Active",
+            CustomerId = customer.CustomerId
+        };
+        db.Users.Add(user);
+        db.SystemLogs.Add(Audit.Log(email, "Customer account registered via storefront", "Auth"));
+        await db.SaveChangesAsync();
+
+        var (token, expiresAt) = tokens.CreateToken(user);
+        return StatusCode(201, new { token, expiresAt, user = AuthPayload.For(user) });
+    }
 }

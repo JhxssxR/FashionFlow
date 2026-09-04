@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { api, saveAuth } from '../api/client';
 
+// SIGN IN mode for existing accounts (staff + customers, credentials from the
+// project docs); CREATE ACCOUNT mode self-registers customer accounts only —
+// staff accounts are invited by an administrator.
 const Login = ({ onBack }) => {
+  const [mode, setMode] = useState('signin');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -12,15 +17,13 @@ const Login = ({ onBack }) => {
     setBusy(true);
     setError('');
     try {
-      const res = await api('/api/auth/login', {
-        method: 'POST',
-        body: { email, password }
-      });
+      const res = mode === 'signin'
+        ? await api('/api/auth/login', { method: 'POST', body: { email, password } })
+        : await api('/api/auth/register', { method: 'POST', body: { name, email, password } });
       saveAuth({ token: res.token, user: res.user });
       window.location.hash = `dashboard/${res.user.dashboardKey}`;
     } catch (err) {
       setError(err.message || 'Sign-in failed. Please try again.');
-    } finally {
       setBusy(false);
     }
   };
@@ -68,18 +71,47 @@ const Login = ({ onBack }) => {
           </div>
 
           <div className="login-form-header">
-            <span className="login-form-tag">SIGN IN</span>
-            <h2 className="login-form-title">Welcome back.</h2>
-            <p className="login-form-subtitle">Sign in to access your FashionFlow dashboard.</p>
+            <span className="login-form-tag">{mode === 'signin' ? 'SIGN IN' : 'CREATE ACCOUNT'}</span>
+            <h2 className="login-form-title">
+              {mode === 'signin' ? 'Welcome back.' : 'Join FashionFlow.'}
+            </h2>
+            <p className="login-form-subtitle">
+              {mode === 'signin'
+                ? 'Sign in to access your FashionFlow dashboard.'
+                : 'Create a free customer account — earn points on every order.'}
+            </p>
+          </div>
+
+          <div className="auth-tabs">
+            <button type="button" className={`auth-tab${mode === 'signin' ? ' active' : ''}`} onClick={() => { setMode('signin'); setError(''); }}>
+              SIGN IN
+            </button>
+            <button type="button" className={`auth-tab${mode === 'register' ? ' active' : ''}`} onClick={() => { setMode('register'); setError(''); }}>
+              CREATE ACCOUNT
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
+            {mode === 'register' && (
+              <div className="form-group">
+                <label htmlFor="reg-name">FULL NAME</label>
+                <input
+                  type="text"
+                  id="reg-name"
+                  placeholder="Juan Dela Cruz"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
             <div className="form-group">
               <label htmlFor="email">EMAIL</label>
               <input
                 type="email"
                 id="email"
-                placeholder="you@fashionflow.com"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -94,17 +126,18 @@ const Login = ({ onBack }) => {
               <input
                 type="password"
                 id="password"
-                placeholder="••••••••"
+                placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
             </div>
 
             {error && <p className="login-error">{error}</p>}
 
             <button type="submit" className="login-submit-btn" disabled={busy}>
-              {busy ? 'SIGNING IN…' : 'SIGN IN →'}
+              {busy ? 'PLEASE WAIT…' : mode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →'}
             </button>
           </form>
         </div>

@@ -7,6 +7,11 @@ public record LoginRequest(
     [Required, EmailAddress] string Email,
     [Required] string Password);
 
+public record RegisterRequest(
+    [Required] string Name,
+    [Required, EmailAddress] string Email,
+    [Required, MinLength(6)] string Password);
+
 // ---------- POS ----------
 public record SaleItemRequest(
     [Range(1, int.MaxValue)] int ProductId,
@@ -73,12 +78,13 @@ public record SavePromotionRequest(
     DateOnly ValidTo);
 
 // ---------- Online checkout ----------
+// Checkout requires a signed-in Customer — identity comes from the token,
+// so there is deliberately no email field here.
 public record CheckoutItemRequest(
     [Range(1, int.MaxValue)] int ProductId,
     [Range(1, 99)] int Quantity);
 
 public record CheckoutRequest(
-    [Required, EmailAddress] string Email,
     [Required] string ShippingAddress,
     [Required, MinLength(1)] List<CheckoutItemRequest> Items);
 
