@@ -59,6 +59,14 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
+  // View swaps keep the old scroll offset (the storefront is very tall, so
+  // e.g. CHECKOUT from the product grid lands on blank footer space) — snap
+  // to the top. Section jumps inside the store (#offers, #women…) re-scroll
+  // themselves in NewArrivals.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [view])
+
   // Scroll reveal animation observer
   useEffect(() => {
     if (view !== 'store') return
