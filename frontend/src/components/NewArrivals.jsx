@@ -97,14 +97,15 @@ const NewArrivals = () => {
   }, []);
 
   // Cards mounted after a filter change never pass through App's scroll
-  // observer, so mark them visible here.
+  // observer, so mark them visible here. The offer tags mount after the
+  // promotions fetch resolves — same treatment, or they stay invisible.
   useEffect(() => {
     requestAnimationFrame(() => {
       sectionRef.current
-        ?.querySelectorAll('.product-card.reveal:not(.is-visible)')
+        ?.querySelectorAll('.product-card.reveal:not(.is-visible), .filter-tag.reveal:not(.is-visible)')
         .forEach((el) => el.classList.add('is-visible'));
     });
-  }, [activeCategory, showAll, products.data]);
+  }, [activeCategory, showAll, products.data, offersQ.data]);
 
   const allProducts = products.data || [];
   const filteredProducts = allProducts.filter((product) => {

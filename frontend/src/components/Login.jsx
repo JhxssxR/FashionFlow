@@ -1,19 +1,6 @@
 import React, { useState } from 'react';
 import { api, saveAuth } from '../api/client';
 
-// Demo accounts from the project documentation — chips prefill the email;
-// the password is typed (credentials are verified by the API, never trusted
-// client-side).
-const DEMO_ACCOUNTS = [
-  { label: 'Administrator', email: 'admin@fashionflow.com' },
-  { label: 'Inventory Manager', email: 'inventman@fashionflow.com' },
-  { label: 'Purchasing Officer', email: 'purchase@fashionflow.com' },
-  { label: 'Sales Staff', email: 'sales@fashionflow.com' },
-  { label: 'Customer', email: 'customer@fashionflow.com' },
-  { label: 'Accountant', email: 'accountan@fashionflow.com' },
-  { label: 'Supplier', email: 'supplier@fashionflow.com' }
-];
-
 const Login = ({ onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,18 +25,12 @@ const Login = ({ onBack }) => {
     }
   };
 
-  const prefill = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword('');
-    setError('');
-  };
-
   return (
     <div className="login-container">
       {/* Left panel with full image and text overlay */}
       <div className="login-left">
-        <img src="/assets/login-editorial.jpg" alt="" aria-hidden="true" className="login-left-img-blur" />
-        <img src="/assets/login-editorial.jpg" alt="Flat lay of clothing inventory — trousers, tee, watch and sneakers" className="login-left-img" />
+        <img src="/assets/login-model.jpg" alt="" aria-hidden="true" className="login-left-img-blur" />
+        <img src="/assets/login-model.jpg" alt="FashionFlow model in a yellow streetwear set on an outdoor court" className="login-left-img" />
         <div className="login-left-overlay">
           <div className="login-left-content">
             <span className="login-left-tag">ERP &amp; CRM — CLOTHING BUSINESS</span>
@@ -126,22 +107,6 @@ const Login = ({ onBack }) => {
               {busy ? 'SIGNING IN…' : 'SIGN IN →'}
             </button>
           </form>
-
-          <div className="login-divider">
-            <span>DEMO ACCOUNTS</span>
-          </div>
-
-          <div className="login-demo-chips">
-            {DEMO_ACCOUNTS.map((cred) => (
-              <button key={cred.email} type="button" className="login-chip" onClick={() => prefill(cred.email)}>
-                {cred.label}
-              </button>
-            ))}
-          </div>
-
-          <button className="login-guest-btn" onClick={onBack}>
-            BROWSE AS CUSTOMER
-          </button>
         </div>
 
         {/* Footer */}

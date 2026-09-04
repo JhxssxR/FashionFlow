@@ -8,7 +8,7 @@ const Hero = () => {
   return (
     <section className="hero">
       <div className="hero-image reveal-fade">
-        <img src="/assets/hero.jpeg" alt="Fashion Model" />
+        <img src="/assets/hero-tulle.jpg" alt="Model wearing the pink Tulle Midi Dress in an open field" />
       </div>
       <div className="hero-content">
         <div className="hero-text-content reveal-left">
