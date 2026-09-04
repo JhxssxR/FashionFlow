@@ -5,7 +5,9 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: '../wwwroot',
+    // The ASP.NET backend (backend/FashionFlow) serves the built SPA from
+    // its wwwroot — run `npm run build` before `dotnet run`.
+    outDir: '../backend/FashionFlow/wwwroot',
     emptyOutDir: true
   },
   // Dev server proxy: the backend runs on http://localhost:5268 (dotnet run).

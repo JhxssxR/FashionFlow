@@ -22,18 +22,22 @@ FashionFlow is an ERP and CRM system for clothing businesses. **The full stack i
 
 ```bash
 # Backend + serving the built frontend (http://localhost:5268)
-dotnet run                          # from repo root — applies migrations and seeds if the DB is empty
+dotnet run --project backend/FashionFlow      # from repo root
+# or: cd backend/FashionFlow && dotnet run
+# (applies migrations and seeds if the DB is empty)
 
-# Build the frontend (outputs to ../wwwroot — wipes and replaces it)
+# Build the frontend (outputs to ../backend/FashionFlow/wwwroot — wipes and replaces it)
 cd frontend
 npm install                         # first time only
 npm run build
 ```
 
-- Database: `localhost\SQLEXPRESS`, database `FashionFlow` (connection string in `appsettings.json`; Trusted_Connection, so no password).
-- **JWT signing key is in user-secrets**, not in the repo: it was set with `dotnet user-secrets set "Jwt:Key" "<random>"`. If you clone fresh, set it again (any 48+ char random string).
+- Repo layout: `backend/FashionFlow/` (ASP.NET Core project) + `frontend/` (React) + `FashionFlow.sln` + docs at the root. Build everything from the root with `dotnet build FashionFlow.sln`.
+- Database: `localhost\SQLEXPRESS`, database `FashionFlow` (connection string in `backend/FashionFlow/appsettings.json`; Trusted_Connection, so no password).
+- **JWT signing key is in user-secrets**, not in the repo: it was set with `dotnet user-secrets set "Jwt:Key" "<random>"` (run from `backend/FashionFlow/`). If you clone fresh, set it again (any 48+ char random string).
 - Frontend dev with hot reload: `cd frontend && npm run dev` — Vite (5173) proxies `/api` to `localhost:5268` (configured in `vite.config.js`), and CORS for 5173 is enabled in Development.
-- Reset the demo data: drop the database (`sqlcmd -S localhost\SQLEXPRESS -Q "ALTER DATABASE FashionFlow SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE FashionFlow;"`, then `dotnet ef database update`), restart — the seed re-runs on an empty DB.
+- Reset the demo data: drop the database (`sqlcmd -S localhost\SQLEXPRESS -Q "ALTER DATABASE FashionFlow SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE FashionFlow;"`, then `dotnet ef database update` from `backend/FashionFlow`), restart — the seed re-runs on an empty DB.
+- **Always `npm run build` BEFORE starting the server** — the static-files provider is created at startup; if `wwwroot` is missing then, assets 404 until the server restarts.
 
 ---
 
@@ -69,35 +73,33 @@ The login page's demo chips prefill the email; the password is still typed and v
 
 ```
 FashionFlow/
-├── Program.cs                  # EF Core + JWT bearer + rate limiter + ProblemDetails + SPA fallback
-├── appsettings.json            # connection string + JWT issuer/audience (key lives in user-secrets)
-├── Migrations/InitialCreate*   # EF Core migration (applied automatically on startup)
-├── Models/                     # 15 entities + Dtos.cs (request records with validation annotations)
-├── Data/
-│   ├── FashionFlowDbContext.cs
-│   └── DbSeed.cs               # one-time demo seed (runs when Users table is empty)
-├── Services/
-│   ├── TokenService.cs         # JWT issue (8h, short claim names, MapInboundClaims=false)
-│   ├── Roles.cs                # role → dashboardKey/label maps
-│   ├── LoyaltyRules.cs         # tiers, progress, perks, 1 pt/₱100 earn rate
-│   ├── PromoRules.cs           # AppliesTo semantics: All | Tier:X | Clearance | category
-│   ├── PurchaseService.cs      # PO Delivered → stock + Inventory + StockMovement + audit log
-│   ├── ClaimsExtensions.cs     # sub/email/customerId/supplierId readers + initials
-│   └── Audit.cs                # SystemLog writer (every state change + failed logins)
-├── Controllers/                # auth, products, inventory, suppliers, purchase-orders, sales,
+├── FashionFlow.sln             # solution (backend project; open this in Visual Studio)
+├── IMPLEMENTATION.md           # this handoff
+├── backend/FashionFlow/        # ASP.NET Core project
+│   ├── Program.cs              # EF Core + JWT bearer + rate limiter + ProblemDetails + SPA fallback
+│   ├── appsettings.json        # connection string + JWT issuer/audience (key lives in user-secrets)
+│   ├── Migrations/InitialCreate*  # EF Core migration (applied automatically on startup)
+│   ├── Models/                 # 15 entities + Dtos.cs (request records with validation annotations)
+│   ├── Data/                   # FashionFlowDbContext + DbSeed (one-time demo seed)
+│   ├── Services/               # TokenService, Roles, LoyaltyRules, PromoRules,
+│   │                           # PurchaseService, ClaimsExtensions, Audit
+│   ├── Controllers/            # auth, products, inventory, suppliers, purchase-orders, sales,
 │   │                           # customers, loyalty, promotions, reports, portal (supplier),
 │   │                           # users, admin (logs+settings)
-└── frontend/src/
-    ├── App.jsx                 # hash router + auth guard (#dashboard/<key> needs a matching ff_auth user)
-    ├── utils.js                # peso/peso2/num, fmtDate/fmtDateTime, statusTone, CHART_COLORS
-    ├── api/client.js           # fetch wrapper (token header, 401 → #login), useApi() hook
-    └── components/
-        ├── Login.jsx           # real POST /api/auth/login
-        ├── NewArrivals.jsx     # products + active promotions from the API
-        └── dashboard/
-            ├── DashboardLayout.jsx   # sidebar + SIGN OUT + real user identity
-            ├── DashboardShared.jsx   # StatCard, Panel, DataTable, Loading, ErrorNote …
-            └── *Dashboard.jsx        # 7 dashboards, all API-wired
+│   └── wwwroot/                # built SPA output of `npm run build` (gitignored)
+└── frontend/                   # React (Vite) app
+    ├── vite.config.js          # outDir → ../backend/FashionFlow/wwwroot; dev proxy /api → :5268
+    └── src/
+        ├── App.jsx             # hash router + auth guard (#dashboard/<key> needs a matching ff_auth user)
+        ├── utils.js            # peso/peso2/num, fmtDate/fmtDateTime, statusTone, CHART_COLORS
+        ├── api/client.js       # fetch wrapper (token header, 401 → #login), useApi() hook
+        └── components/
+            ├── Login.jsx           # real POST /api/auth/login
+            ├── NewArrivals.jsx     # products + active promotions from the API
+            └── dashboard/
+                ├── DashboardLayout.jsx   # sidebar + SIGN OUT + real user identity
+                ├── DashboardShared.jsx   # StatCard, Panel, DataTable, Loading, ErrorNote …
+                └── *Dashboard.jsx        # 7 dashboards, all API-wired
 ```
 
 **Conventions:**
