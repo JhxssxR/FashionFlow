@@ -9,7 +9,7 @@ namespace FashionFlow.Controllers;
 
 [ApiController]
 [Route("api/sales")]
-public class SalesController(FashionFlowDbContext db) : ControllerBase
+public class SalesController(FashionFlowDbContext db, SaleService sales) : ControllerBase
 {
     private static readonly string[] PaymentMethods = ["Cash", "Card", "GCash", "Maya"];
 
@@ -148,9 +148,11 @@ public class SalesController(FashionFlowDbContext db) : ControllerBase
     }
 
     // The POS charge. One transaction that: validates stock, applies the
-    // promotion, writes the Sale lines, decrements inventory, records stock
-    // movements, awards loyalty points and writes the audit log — the ERP
-    // connection between the POS, Inventory, Loyalty and Promotions modules.
+    // promotion, then hands off to SaleService — the shared pipeline that
+    // writes the Sale lines, decrements inventory, records stock movements,
+    // awards loyalty points and writes the audit log. The same pipeline
+    // fulfils paid online orders (PaymentsController), connecting the POS,
+    // Storefront, Inventory, Loyalty and Promotions modules.
     [HttpPost]
     [Authorize(Roles = "Admin,SalesStaff")]
     public async Task<IActionResult> Charge(CreateSaleRequest req)
@@ -160,8 +162,6 @@ public class SalesController(FashionFlowDbContext db) : ControllerBase
             string.Equals(m, req.PaymentMethod.Trim(), StringComparison.OrdinalIgnoreCase));
         if (method is null)
             return BadRequest(new { message = "Payment method must be Cash, Card, GCash or Maya." });
-
-        await using var tx = await db.Database.BeginTransactionAsync();
 
         var customer = req.CustomerId is int cid
             ? await db.Customers.FirstOrDefaultAsync(c => c.CustomerId == cid)
@@ -214,79 +214,26 @@ public class SalesController(FashionFlowDbContext db) : ControllerBase
         var grandTotal = subtotal - discount;
 
         // Receipt number: continue the POS-1xxx series past the seeded ones.
+        // Loyalty award is based on the discounted total.
         var receiptCount = await db.Sales.Select(s => s.ReceiptNo).Distinct().CountAsync();
         var receipt = $"POS-{1000 + receiptCount + 1}";
-
-        // Loyalty award is based on the discounted total; per-line stamps are
-        // allocated proportionally so a receipt's lines sum to that award.
         var pointsEarned = customer is null ? 0 : LoyaltyRules.PointsFor(grandTotal);
-        var lineTotals = lines.Select(l => products[l.ProductId].Price * l.Quantity).ToList();
-        var linePoints = new int[lines.Count];
-        if (pointsEarned > 0)
-        {
-            var allocated = 0;
-            for (var i = 0; i < lines.Count - 1; i++)
-            {
-                linePoints[i] = (int)(pointsEarned * lineTotals[i] / grandTotal);
-                allocated += linePoints[i];
-            }
-            linePoints[^1] = pointsEarned - allocated;
-        }
 
-        var now = DateTime.Now;
-        for (var i = 0; i < lines.Count; i++)
-        {
-            var (productId, qty) = lines[i];
-            var p = products[productId];
-            db.Sales.Add(new Sale
-            {
-                ReceiptNo = receipt,
-                CustomerId = customer?.CustomerId,
-                ProductId = productId,
-                Quantity = qty,
-                UnitPrice = p.Price,
-                TotalAmount = p.Price * qty,
-                Date = now,
-                PaymentMethod = method,
-                Channel = "POS",
-                LoyaltyPointsEarned = linePoints[i]
-            });
-
-            p.Stock -= qty;
-            var inv = p.Inventories.FirstOrDefault();
-            if (inv is not null) inv.Quantity -= qty;
-
-            db.StockMovements.Add(new StockMovement
-            {
-                ProductId = productId,
-                Quantity = qty,
-                Direction = "Out",
-                Date = now,
-                Reference = receipt
-            });
-        }
-
-        if (customer is not null && pointsEarned > 0)
-        {
-            db.Loyalties.Add(new Loyalty
-            {
-                CustomerId = customer.CustomerId,
-                PointsEarned = pointsEarned,
-                PointsRedeemed = 0,
-                Date = now,
-                Note = $"Earned from {receipt}"
-            });
-            customer.LoyaltyPoints += pointsEarned;
-            customer.Tier = LoyaltyRules.TierFor(customer.LoyaltyPoints);
-        }
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var saleLines = lines.Select(l => (products[l.ProductId], l.Quantity)).ToList();
+        var (_, total, points) = await sales.RecordSaleAsync(
+            customer,
+            saleLines,
+            paymentMethod: method,
+            channel: "POS",
+            receiptNo: receipt,
+            when: DateTime.Now,
+            discount: discount,
+            actorEmail: User.Email(),
+            totalPointsOverride: pointsEarned,
+            logNote: discount > 0 ? $"promo {promo!.Code}" : null);
 
         if (promo is not null && discount > 0) promo.Uses++;
-
-        db.SystemLogs.Add(Audit.Log(User.Email(),
-            $"POS sale {receipt} completed — ₱{grandTotal:N0}" +
-            (customer is null ? "" : $" · {customer.Name} +{pointsEarned} pts") +
-            (discount > 0 ? $" · promo {promo!.Code}" : ""), "Sales"));
-
         await db.SaveChangesAsync();
         await tx.CommitAsync();
 
@@ -295,8 +242,8 @@ public class SalesController(FashionFlowDbContext db) : ControllerBase
             receipt,
             subtotal,
             discount,
-            total = grandTotal,
-            pointsEarned,
+            total,
+            pointsEarned = points,
             customer = customer is null ? null : new { customer.Name, customer.Tier, customer.LoyaltyPoints },
             promoMessage
         });

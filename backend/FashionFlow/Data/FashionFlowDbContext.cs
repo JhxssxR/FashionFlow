@@ -19,6 +19,8 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -35,6 +37,12 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
         mb.Entity<PurchaseOrder>().HasIndex(p => p.PONumber).IsUnique();
         mb.Entity<Promotion>().HasIndex(p => p.Code).IsUnique();
         mb.Entity<AppSetting>().HasKey(a => a.Key);
+        mb.Entity<Order>().HasIndex(o => o.OrderNumber).IsUnique();
+        mb.Entity<Order>().HasIndex(o => o.CheckoutSessionId);
+        mb.Entity<OrderItem>().HasKey(i => i.OrderItemId);
+        mb.Entity<Order>().Property(o => o.Subtotal).HasPrecision(18, 2);
+        mb.Entity<Order>().Property(o => o.Total).HasPrecision(18, 2);
+        mb.Entity<OrderItem>().Property(i => i.UnitPrice).HasPrecision(18, 2);
 
         mb.Entity<Product>().Property(p => p.Price).HasPrecision(18, 2);
         mb.Entity<Product>().Property(p => p.OriginalPrice).HasPrecision(18, 2);

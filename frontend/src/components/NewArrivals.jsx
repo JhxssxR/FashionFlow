@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApi } from '../api/client';
+import { useCart } from '../context/CartContext.jsx';
 import { peso, fmtDate } from '../utils';
 
 // Categories mirror the header nav (WOMEN / MEN / OUTERWEAR / SALE).
@@ -27,6 +28,7 @@ const NewArrivals = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
   const sectionRef = useRef(null);
+  const cart = useCart();
 
   const products = useApi('/api/products');
   const offersQ = useApi('/api/promotions/active');
@@ -201,6 +203,13 @@ const NewArrivals = () => {
                 <span className="product-price">{peso(product.price)}</span>
                 {product.originalPrice && <span className="product-original-price">{peso(product.originalPrice)}</span>}
               </div>
+              <button
+                className="add-cart-btn"
+                onClick={() => cart.add(product)}
+                disabled={product.stock < 1}
+              >
+                {product.stock < 1 ? 'OUT OF STOCK' : 'ADD TO CART'}
+              </button>
             </div>
           </div>
         ))}

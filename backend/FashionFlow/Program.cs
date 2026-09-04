@@ -16,6 +16,10 @@ builder.Services.AddDbContext<FashionFlowDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<PayMongoService>();
+builder.Services.AddScoped<OrderFulfillmentService>();
 
 // JWT bearer auth. Tokens use short claim names and the handler is set to
 // MapInboundClaims = false so "role"/"name" arrive exactly as issued.

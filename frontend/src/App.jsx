@@ -5,6 +5,8 @@ import NewArrivals from './components/NewArrivals'
 import BannerCTA from './components/BannerCTA'
 import Footer from './components/Footer'
 import Login from './components/Login'
+import CartDrawer from './components/CartDrawer'
+import CheckoutPage from './components/CheckoutPage'
 import DashboardRouter from './components/dashboard/DashboardRouter'
 import { getAuth } from './api/client'
 import './App.css'
@@ -20,10 +22,14 @@ function App() {
   const [view, setView] = useState('store')
   const [dashRole, setDashRole] = useState('admin')
   const [authUser, setAuthUser] = useState(null)
+  const [route, setRoute] = useState(window.location.hash)
 
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash
+      // Always record the raw hash: sub-routes like #checkout/success/FF-10243
+      // must re-render even though the top-level view stays 'checkout'.
+      setRoute(hash)
       if (hash === '#login') {
         setView('login')
       } else if (hash.startsWith('#dashboard/')) {
@@ -39,6 +45,8 @@ function App() {
         setAuthUser(auth.user)
         setDashRole(role)
         setView('dashboard')
+      } else if (hash.startsWith('#checkout')) {
+        setView('checkout')
       } else {
         setView('store')
       }
@@ -92,7 +100,25 @@ function App() {
   }
 
   if (view === 'dashboard') {
-    return <DashboardRouter role={dashRole} user={authUser} />
+    return (
+      <>
+        <DashboardRouter role={dashRole} user={authUser} />
+        <CartDrawer />
+      </>
+    )
+  }
+
+  if (view === 'checkout') {
+    return (
+      <div className="app-container">
+        <Header onLoginClick={() => navigateTo('login')} />
+        <main>
+          <CheckoutPage route={route} />
+        </main>
+        <Footer />
+        <CartDrawer />
+      </div>
+    )
   }
 
   return (
@@ -104,6 +130,7 @@ function App() {
         <BannerCTA />
       </main>
       <Footer />
+      <CartDrawer />
     </div>
   )
 }

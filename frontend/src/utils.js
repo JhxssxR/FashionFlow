@@ -23,6 +23,7 @@ export function statusTone(status) {
     case 'Active':
     case 'Completed':
     case 'Confirmed':
+    case 'Paid':
       return 'ok';
     case 'In Transit':
     case 'Scheduled':
@@ -31,6 +32,7 @@ export function statusTone(status) {
       return 'warn';
     case 'Cancelled':
     case 'Expired':
+    case 'Failed':
       return 'bad';
     default:
       return 'neutral';

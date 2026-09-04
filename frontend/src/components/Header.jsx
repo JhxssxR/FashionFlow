@@ -1,6 +1,8 @@
 import React from 'react';
+import { useCart } from '../context/CartContext.jsx';
 
 const Header = ({ onLoginClick }) => {
+  const cart = useCart();
   return (
     <>
       <div className="top-banner">
@@ -47,8 +49,9 @@ const Header = ({ onLoginClick }) => {
           <button className="icon-btn" aria-label="Search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           </button>
-          <button className="icon-btn" aria-label="Cart">
+          <button className="icon-btn cart-btn" aria-label="Cart" onClick={() => cart.setOpen(true)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+            {cart.count > 0 && <span className="cart-badge">{cart.count}</span>}
           </button>
           <button className="login-link-btn" onClick={onLoginClick}>SIGN IN</button>
         </div>

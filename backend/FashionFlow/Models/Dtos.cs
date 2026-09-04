@@ -72,6 +72,18 @@ public record SavePromotionRequest(
     DateOnly ValidFrom,
     DateOnly ValidTo);
 
+// ---------- Online checkout ----------
+public record CheckoutItemRequest(
+    [Range(1, int.MaxValue)] int ProductId,
+    [Range(1, 99)] int Quantity);
+
+public record CheckoutRequest(
+    [Required, EmailAddress] string Email,
+    [Required] string ShippingAddress,
+    [Required, MinLength(1)] List<CheckoutItemRequest> Items);
+
+public record MockConfirmRequest([Required] string OrderNumber);
+
 // ---------- Users (admin) ----------
 public record CreateUserRequest(
     [Required] string Name,

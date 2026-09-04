@@ -147,6 +147,8 @@ All under `/api` (camelCase JSON). Auth: `Authorization: Bearer <token>`.
 ## 7. Remaining work (next continuation)
 
 > **Detailed build plan for everything below: [`REMAINING-IMPLEMENTATION.md`](REMAINING-IMPLEMENTATION.md)** — includes PayMongo key setup, entity/service/endpoint designs, the webhook flow, and the Azure deployment walkthrough.
+>
+> **Progress (Sep 5, 2026):** items 1–2 are BUILT — storefront cart (CartContext + drawer + add-to-cart), `Orders`/`OrderItems` tables, `/api/checkout`, webhook endpoint with HMAC verification, and fulfilment through the shared `SaleService`. Until PayMongo keys are set, Development returns a **mock-pay page** (`#checkout/mock-pay/FF-…` → `POST /api/payments/mock-confirm`) so the whole flow is demoable; adding `PayMongo:SecretKey` switches to the real hosted checkout automatically. Remaining: create the PayMongo account + keys, deploy, register the webhook.
 
 1. **PayMongo integration** (in the docs, not built): payment intent on storefront checkout; POS keeps Cash/GCash-Manual.
 2. **Deployment** (Deliverable rubric): `dotnet publish -c Release` → Azure App Service / Render; database → Azure SQL or Supabase; set `ConnectionStrings:Default` + `Jwt:Key` as host env vars; `npm run build` before publish so `wwwroot` ships.

@@ -4,6 +4,15 @@
 > This document is the build plan for everything still missing, in recommended order.
 > Status as of Sep 5, 2026: ERP core complete and verified; the items below are not started.
 
+> **PROGRESS UPDATE (Sep 5, 2026):** §1 (PayMongo) and §2 (cart/checkout) are **implemented** —
+> `Models/Order.cs`, `Services/SaleService.cs` (shared POS + online pipeline), `Services/PayMongoService.cs`,
+> `Controllers/PaymentsController.cs`, cart drawer + checkout pages, customer dashboard history.
+> Verified end to end in Development via the **mock-pay bridge** (`/api/payments/mock-confirm`, Dev-only):
+> cart → order `FF-10242`/`FF-10243` → confirm → stock decremented, loyalty earned, history updated, idempotent.
+> **What's left:** create the PayMongo account, set `PayMongo:SecretKey`/`PublicKey`/`WebhookSecret`
+> (user-secrets locally, env vars in prod) — the app switches to the real hosted checkout with no code
+> changes — then deploy (§3) and register the webhook URL.
+
 ---
 
 ## Overview — what's left and why

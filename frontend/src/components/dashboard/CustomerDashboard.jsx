@@ -77,12 +77,25 @@ const CustomerDashboard = ({ user }) => {
   const [tick, setTick] = useState(0);
   const loyalty = useApi('/api/loyalty/mine', [tick]);
   const orders = useApi('/api/sales/mine', [tick]);
+  const onlineOrders = useApi('/api/orders/mine', [tick]);
   const promos = useApi('/api/promotions/active', [tick]);
   const products = useApi('/api/products');
   const bump = () => setTick((t) => t + 1);
 
-  const lifetime = (orders.data || []).reduce((s, o) => s + o.total, 0);
-  const orderRows = (orders.data || []).map((o) => ({ ...o, dateLabel: fmtDate(o.date) }));
+  // Unified purchase history: POS/online receipts (Sales) + web orders
+  // (Orders, which fulfil into Sales once paid).
+  const lifetime = orderRows
+    .filter((r) => r.status === 'Delivered')
+    .reduce((s, r) => s + r.total, 0);
+  const orderRows = [
+    ...(orders.data || []).map((o) => ({ ...o, dateLabel: fmtDate(o.date), source: 'receipt' })),
+    ...(onlineOrders.data || []).map((o) => ({
+      ...o,
+      dateLabel: fmtDate(o.date),
+      status: o.status === 'Paid' ? 'Delivered' : o.status,
+      source: 'online'
+    }))
+  ].sort((a, b) => (a.dateLabel < b.dateLabel ? 1 : -1));
 
   const loyaltyPanel = (
     <Panel title="Loyalty program" subtitle="Earn 1 point for every ₱100 — redeem at checkout">
@@ -172,7 +185,7 @@ const CustomerDashboard = ({ user }) => {
           <>
             <div className="stat-grid">
               <StatCard label="LOYALTY POINTS" value={num(loyalty.data?.points)} sub={`${num(loyalty.data?.pointsToNext)} more to ${loyalty.data?.nextTier || '—'}`} />
-              <StatCard label="TOTAL ORDERS" value={num(orders.data?.length)} sub="Receipts on your account" tone="purple" />
+              <StatCard label="TOTAL ORDERS" value={num(orderRows.length)} sub="Receipts + online orders" tone="purple" />
               <StatCard label="LIFETIME SPEND" value={peso(lifetime)} sub="Across POS and online orders" tone="dark" />
               <StatCard label="TIER" value={loyalty.data?.tier || '—'} sub="Free shipping + early drops" tone="green" />
             </div>
