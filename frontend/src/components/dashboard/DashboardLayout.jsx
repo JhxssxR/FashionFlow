@@ -1,5 +1,6 @@
 import React from 'react';
-import { USERS } from '../../data/dashboardData';
+import { clearAuth } from '../../api/client';
+import { initialsOf } from '../../utils';
 
 // Sidebar navigation per role, mapped from the project documentation's
 // role-based access list and the 11 subsystem modules.
@@ -85,16 +86,26 @@ const ROLE_CONFIG = {
   }
 };
 
-const DashboardLayout = ({ role, children }) => {
+const DashboardLayout = ({ role, user, children }) => {
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.admin;
-  const user = USERS[role] || USERS.admin;
   const [activePage, setActivePage] = React.useState(config.activePage);
   const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
+
+  const goStore = (e) => {
+    e.preventDefault();
+    window.location.hash = '';
+  };
+
+  const logout = (e) => {
+    e.preventDefault();
+    clearAuth();
+    window.location.hash = 'login';
+  };
 
   return (
     <div className="dash-shell">
       <aside className="dash-sidebar">
-        <a href="#" className="dash-brand" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>
+        <a href="#" className="dash-brand" onClick={goStore}>
           <img src="/assets/no background logo.png" alt="FashionFlow" />
         </a>
 
@@ -114,17 +125,16 @@ const DashboardLayout = ({ role, children }) => {
 
         <div className="dash-sidebar-foot">
           <div className="dash-user">
-            <span className="dash-avatar">{user.initials}</span>
+            <span className="dash-avatar">{user?.initials || initialsOf(user?.name || '')}</span>
             <div className="dash-user-meta">
-              <strong>{user.name}</strong>
+              <strong>{user?.name}</strong>
               <span>{config.label}</span>
             </div>
           </div>
-          <a
-            href="#"
-            className="dash-back-link"
-            onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}
-          >
+          <a href="#" className="dash-back-link" onClick={logout}>
+            SIGN OUT
+          </a>
+          <a href="#" className="dash-back-link" onClick={goStore}>
             &larr; BACK TO STORE
           </a>
         </div>
@@ -132,22 +142,18 @@ const DashboardLayout = ({ role, children }) => {
 
       <div className="dash-main">
         <header className="dash-topbar">
-          <a
-            href="#"
-            className="dash-mobile-brand"
-            onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}
-          >
+          <a href="#" className="dash-mobile-brand" onClick={goStore}>
             <img src="/assets/no background logo.png" alt="FashionFlow" />
           </a>
           <div>
             <h1 className="dash-page-title">{currentPage.label}</h1>
             <p className="dash-page-date">
-              {new Date(2026, 8, 4).toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           </div>
           <div className="dash-topbar-right">
             <span className="dash-role-chip">{config.roleTag}</span>
-            <span className="dash-avatar">{user.initials}</span>
+            <span className="dash-avatar">{user?.initials || initialsOf(user?.name || '')}</span>
           </div>
         </header>
         <main className="dash-content">{children(activePage)}</main>

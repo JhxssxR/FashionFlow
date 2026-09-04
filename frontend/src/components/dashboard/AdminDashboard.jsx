@@ -1,48 +1,191 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, EmptyState } from './DashboardShared';
-import {
-  DAILY, peso, sumRange, USERS_BY_ROLE, ROLE_CREDENTIALS, CHART_COLORS
-} from '../../data/dashboardData';
+import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import { useApi, api } from '../../api/client';
+import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.purple, CHART_COLORS.green, '#b9b9b9'];
 
-const EMPTY = 'No registered users yet — accounts will appear here once the C# database is connected.';
+const ROLE_OPTIONS = [
+  ['Admin', 'System Administrator'],
+  ['InventoryManager', 'Inventory Manager'],
+  ['PurchasingOfficer', 'Purchasing Officer'],
+  ['SalesStaff', 'Sales Staff'],
+  ['Accountant', 'Accountant'],
+  ['Supplier', 'Supplier'],
+  ['Customer', 'Customer']
+];
 
-const AdminDashboard = () => {
-  const revenue30 = sumRange('revenue', 30);
-  const orders30 = sumRange('orders', 30);
-  const visitors30 = sumRange('visitors', 30);
-  const totalUsers = USERS_BY_ROLE.reduce((s, r) => s + r.value, 0);
+const InviteForm = ({ onDone }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('InventoryManager');
+  const [password, setPassword] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      await api('/api/users', { method: 'POST', body: { name, email, role, password, activate: true } });
+      setMsg(`Account created for ${email}.`);
+      setName('');
+      setEmail('');
+      setPassword('');
+      onDone();
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <DashboardLayout role="admin">
+    <form className="inline-form" onSubmit={submit}>
+      <div className="form-row">
+        <input placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required />
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <select value={role} onChange={(e) => setRole(e.target.value)}>
+          {ROLE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </div>
+      <div className="form-row">
+        <input type="password" placeholder="Temporary password (min 6 chars)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+        <button className="mini-btn" type="submit" disabled={busy}>{busy ? 'SAVING…' : '+ INVITE USER'}</button>
+      </div>
+      {err && <ErrorNote message={err} />}
+      {msg && <div className="form-ok">{msg}</div>}
+    </form>
+  );
+};
+
+const SettingsPanel = () => {
+  const { data, loading, error, reload } = useApi('/api/settings');
+  const [edits, setEdits] = useState({});
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    setMsg('');
+    try {
+      const changes = Object.entries(edits)
+        .filter(([, v]) => v !== undefined)
+        .map(([key, value]) => ({ key, value: String(value) }));
+      await api('/api/settings', { method: 'PUT', body: changes });
+      setEdits({});
+      setMsg('Settings saved.');
+      reload(true);
+    } catch (ex) {
+      setMsg(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) return <Loading />;
+  if (error) return <ErrorNote message={error} />;
+
+  return (
+    <>
+      <div className="settings-grid">
+        {(data || []).map((s) => (
+          <div className="settings-row" key={s.key}>
+            <label>{s.key.replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase()}</label>
+            <input
+              type="text"
+              value={edits[s.key] !== undefined ? edits[s.key] : s.value}
+              onChange={(e) => setEdits((prev) => ({ ...prev, [s.key]: e.target.value }))}
+            />
+          </div>
+        ))}
+      </div>
+      {msg && <div className="form-ok">{msg}</div>}
+      <div className="panel-footnote">Settings are stored in the AppSettings table — changes are logged in System Logs.</div>
+      <button className="mini-btn" onClick={save} disabled={busy || Object.keys(edits).length === 0}>
+        {busy ? 'SAVING…' : 'SAVE CHANGES'}
+      </button>
+    </>
+  );
+};
+
+const AdminDashboard = ({ user }) => {
+  const sales = useApi('/api/reports/sales-summary?days=30');
+  const byRole = useApi('/api/users/by-role');
+  const [usersTick, setUsersTick] = useState(0);
+  const usersQ = useApi('/api/users', [usersTick]);
+  const logs = useApi('/api/logs?limit=30', [usersTick]);
+  const lowStock = useApi('/api/inventory/low-stock', [usersTick]);
+  const reports = useApi('/api/reports', [usersTick]);
+
+  const series = sales.data?.series || [];
+  const totals = sales.data?.totals;
+  const totalUsers = (byRole.data || []).reduce((s, r) => s + r.value, 0);
+  const bump = () => setUsersTick((t) => t + 1);
+
+  const userRows = (usersQ.data || []).map((u) => ({
+    email: u.email,
+    name: u.name,
+    role: u.roleLabel,
+    status: u.status
+  }));
+
+  const revenueChart = (
+    <ResponsiveContainer width="100%" height={260}>
+      <AreaChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={CHART_COLORS.gold} stopOpacity={0.45} />
+            <stop offset="100%" stopColor={CHART_COLORS.gold} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+        <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} interval={6} />
+        <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
+        <Tooltip formatter={(v) => [peso(v), 'Revenue']} />
+        <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.gold} strokeWidth={2} fill="url(#revGrad)" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+
+  return (
+    <DashboardLayout role="admin" user={user}>
       {(page) => {
         if (page === 'users') {
           return (
             <>
               <div className="stat-grid">
-                <StatCard label="ROLES CONFIGURED" value={ROLE_CREDENTIALS.length} sub="Admin, Inventory, Purchasing, POS, Customer, Finance, Supplier" tone="dark" />
-                <StatCard label="REGISTERED USERS" value="0" sub="Waiting for the database" tone="plain" />
+                <StatCard label="ROLES CONFIGURED" value={ROLE_OPTIONS.length} sub="RBAC enforced on every API endpoint" tone="dark" />
+                <StatCard label="REGISTERED USERS" value={num(usersQ.data?.length)} sub="Accounts in the Users table" tone="plain" />
               </div>
-              <Panel title="Users & roles" subtitle="Every account in the system, across all modules" action={<a href="#" className="panel-link" onClick={(e) => e.preventDefault()}>+ INVITE USER</a>}>
-                <DataTable
-                  keyField="email"
-                  emptyTitle="NO USERS YET"
-                  emptyNote={EMPTY}
-                  columns={[
-                    { key: 'name', label: 'Name' },
-                    { key: 'role', label: 'Role' },
-                    { key: 'email', label: 'Email' },
-                    { key: 'status', label: 'Status' }
-                  ]}
-                  rows={[]}
-                />
+              <Panel title="Invite a user" subtitle="Creates the account with a BCrypt-hashed password">
+                <InviteForm onDone={bump} />
+              </Panel>
+              <Panel title="Users & roles" subtitle="Every account in the system, across all modules">
+                <ErrorNote message={usersQ.error} />
+                {usersQ.loading && !usersQ.data ? <Loading /> : (
+                  <DataTable
+                    keyField="email"
+                    emptyTitle="NO USERS YET"
+                    emptyNote="Invite team members above — they will appear here immediately."
+                    columns={[
+                      { key: 'name', label: 'Name' },
+                      { key: 'role', label: 'Role' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
+                    ]}
+                    rows={userRows}
+                  />
+                )}
               </Panel>
             </>
           );
@@ -52,24 +195,25 @@ const AdminDashboard = () => {
           return (
             <>
               <Panel title="Revenue — last 30 days" subtitle="System-wide reporting across storefront, POS and online orders">
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={DAILY} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="revGradR" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={CHART_COLORS.gold} stopOpacity={0.45} />
-                        <stop offset="100%" stopColor={CHART_COLORS.gold} stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                    <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} interval={6} />
-                    <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-                    <Tooltip formatter={(v) => [peso(v), 'Revenue']} />
-                    <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.gold} strokeWidth={2} fill="url(#revGradR)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <ErrorNote message={sales.error} />
+                {sales.loading ? <Loading /> : revenueChart}
               </Panel>
               <Panel title="Saved reports" subtitle="Generated and archived reports">
-                <EmptyState title="NO REPORTS GENERATED YET" note="Sales, inventory and financial reports will be archived here once transactions flow through the system." />
+                <ErrorNote message={reports.error} />
+                {reports.loading ? <Loading /> : (
+                  <DataTable
+                    keyField="id"
+                    emptyTitle="NO REPORTS GENERATED YET"
+                    emptyNote="Sales, inventory and financial reports will be archived here."
+                    columns={[
+                      { key: 'title', label: 'Title' },
+                      { key: 'type', label: 'Type' },
+                      { key: 'date', label: 'Generated', render: (r) => fmtDateTime(r.date) },
+                      { key: 'generatedBy', label: 'By' }
+                    ]}
+                    rows={reports.data || []}
+                  />
+                )}
               </Panel>
             </>
           );
@@ -78,37 +222,29 @@ const AdminDashboard = () => {
         if (page === 'logs') {
           return (
             <Panel title="System activity logs" subtitle="Every module action, newest first">
-              <EmptyState title="NO ACTIVITY LOGGED YET" note="Sign-ins, sales, stock movements and configuration changes will be recorded here as the system is used." />
+              <ErrorNote message={logs.error} />
+              {logs.loading ? <Loading /> : (
+                <DataTable
+                  keyField="id"
+                  emptyTitle="NO ACTIVITY LOGGED YET"
+                  emptyNote="Sign-ins, sales, stock movements and configuration changes are recorded automatically."
+                  columns={[
+                    { key: 'time', label: 'Time', width: 180, render: (r) => fmtDateTime(r.time) },
+                    { key: 'user', label: 'User' },
+                    { key: 'action', label: 'Action' },
+                    { key: 'type', label: 'Type', render: (r) => <StatusBadge status={r.type === 'Auth' ? 'Active' : r.type} /> }
+                  ]}
+                  rows={logs.data || []}
+                />
+              )}
             </Panel>
           );
         }
 
         if (page === 'settings') {
           return (
-            <Panel title="System settings" subtitle="Store-wide configuration" action={<button className="mini-btn" onClick={(e) => e.preventDefault()}>SAVE CHANGES</button>}>
-              <div className="settings-grid">
-                <div className="settings-row">
-                  <label>STORE NAME</label>
-                  <input type="text" defaultValue="FashionFlow" readOnly />
-                </div>
-                <div className="settings-row">
-                  <label>CURRENCY</label>
-                  <input type="text" defaultValue="Philippine Peso (₱) — PHP" readOnly />
-                </div>
-                <div className="settings-row">
-                  <label>LOYALTY EARN RATE</label>
-                  <input type="text" defaultValue="1 point per ₱100 spent" readOnly />
-                </div>
-                <div className="settings-row">
-                  <label>LOW-STOCK THRESHOLD</label>
-                  <input type="text" defaultValue="12 units" readOnly />
-                </div>
-                <div className="settings-row">
-                  <label>VAT RATE</label>
-                  <input type="text" defaultValue="12% (inclusive)" readOnly />
-                </div>
-              </div>
-              <div className="panel-footnote">Settings become editable once the backend configuration service is connected.</div>
+            <Panel title="System settings" subtitle="Store-wide configuration">
+              <SettingsPanel />
             </Panel>
           );
         }
@@ -117,84 +253,105 @@ const AdminDashboard = () => {
         return (
           <>
             <div className="stat-grid">
-              <StatCard label="REVENUE (30 DAYS)" value={peso(revenue30)} sub="+12.4% vs previous period" />
-              <StatCard label="ORDERS (30 DAYS)" value={orders30.toLocaleString('en-PH')} sub={`${Math.round(orders30 / 30)} per day average`} tone="purple" />
-              <StatCard label="SYSTEM USERS" value={totalUsers.toLocaleString('en-PH')} sub="Projection once modules are live" tone="dark" />
-              <StatCard label="STORE VISITORS (30 DAYS)" value={visitors30.toLocaleString('en-PH')} sub="Across storefront & POS" tone="plain" />
+              <StatCard label="REVENUE (30 DAYS)" value={peso(totals?.revenue)} sub="Live from the Sales table" />
+              <StatCard label="ORDERS (30 DAYS)" value={num(totals?.orders)} sub="Distinct receipts, POS + online" tone="purple" />
+              <StatCard label="SYSTEM USERS" value={num(totalUsers)} sub="Staff accounts, customers & suppliers" tone="dark" />
+              <StatCard label="LOW STOCK ALERTS" value={num(lowStock.data?.rows?.length)} sub={`Threshold: ${lowStock.data?.threshold ?? '—'} units`} tone="red" />
             </div>
 
             <div className="panel-grid panel-grid-2-1">
               <Panel title="Revenue — last 30 days" subtitle="All channels: storefront, POS and online orders">
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={DAILY} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={CHART_COLORS.gold} stopOpacity={0.45} />
-                        <stop offset="100%" stopColor={CHART_COLORS.gold} stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                    <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={false} interval={6} />
-                    <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-                    <Tooltip formatter={(v) => [peso(v), 'Revenue']} />
-                    <Area type="monotone" dataKey="revenue" stroke={CHART_COLORS.gold} strokeWidth={2} fill="url(#revGrad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <ErrorNote message={sales.error} />
+                {sales.loading ? <Loading /> : revenueChart}
               </Panel>
 
-              <Panel title="Users by role" subtitle="Planned access distribution">
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={USERS_BY_ROLE}
-                      dataKey="value"
-                      nameKey="role"
-                      innerRadius={62}
-                      outerRadius={95}
-                      paddingAngle={2}
-                      stroke="none"
-                    >
-                      {USERS_BY_ROLE.map((entry, i) => (
-                        <Cell key={entry.role} fill={donutColors[i % donutColors.length]} />
+              <Panel title="Users by role" subtitle="Access distribution">
+                <ErrorNote message={byRole.error} />
+                {byRole.loading ? <Loading /> : (
+                  <>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie
+                          data={byRole.data || []}
+                          dataKey="value"
+                          nameKey="role"
+                          innerRadius={62}
+                          outerRadius={95}
+                          paddingAngle={2}
+                          stroke="none"
+                        >
+                          {(byRole.data || []).map((entry, i) => (
+                            <Cell key={entry.role} fill={donutColors[i % donutColors.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v) => num(v)} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <ul className="legend-list">
+                      {(byRole.data || []).map((r, i) => (
+                        <li key={r.role}>
+                          <span className="legend-dot" style={{ background: donutColors[i % donutColors.length] }} />
+                          {r.role} — {num(r.value)}
+                        </li>
                       ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => v.toLocaleString('en-PH')} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <ul className="legend-list">
-                  {USERS_BY_ROLE.map((r, i) => (
-                    <li key={r.role}>
-                      <span className="legend-dot" style={{ background: donutColors[i % donutColors.length] }} />
-                      {r.role} — {r.value.toLocaleString('en-PH')}
-                    </li>
-                  ))}
-                </ul>
+                    </ul>
+                  </>
+                )}
               </Panel>
             </div>
 
             <div className="panel-grid panel-grid-1-1">
-              <Panel title="Employees & accounts" subtitle="People with ERP access" action={<a href="#" className="panel-link" onClick={(e) => e.preventDefault()}>MANAGE ROLES →</a>}>
-                <DataTable
-                  keyField="email"
-                  emptyTitle="NO EMPLOYEE ACCOUNTS YET"
-                  emptyNote={EMPTY}
-                  columns={[
-                    { key: 'name', label: 'Name' },
-                    { key: 'role', label: 'Role' },
-                    { key: 'email', label: 'Email' },
-                    { key: 'status', label: 'Status' }
-                  ]}
-                  rows={[]}
-                />
+              <Panel title="Employees & accounts" subtitle="People with ERP access">
+                <ErrorNote message={usersQ.error} />
+                {usersQ.loading && !usersQ.data ? <Loading /> : (
+                  <DataTable
+                    keyField="email"
+                    emptyTitle="NO EMPLOYEE ACCOUNTS YET"
+                    emptyNote="Invite team members from the Users & Roles page."
+                    columns={[
+                      { key: 'name', label: 'Name' },
+                      { key: 'role', label: 'Role' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
+                    ]}
+                    rows={userRows}
+                  />
+                )}
               </Panel>
 
-              <Panel title="Low stock alerts" subtitle="Flagged to the admin across modules" action={<a href="#" className="panel-link" onClick={(e) => e.preventDefault()}>VIEW INVENTORY →</a>}>
-                <EmptyState title="NO STOCK ALERTS YET" note="Products that fall below the low-stock threshold will be flagged here automatically." />
+              <Panel title="Low stock alerts" subtitle="Flagged across modules from live inventory">
+                <ErrorNote message={lowStock.error} />
+                {lowStock.loading ? <Loading /> : (
+                  <DataTable
+                    keyField="id"
+                    emptyTitle="NO STOCK ALERTS"
+                    emptyNote="Products at or below the low-stock threshold appear here automatically."
+                    columns={[
+                      { key: 'name', label: 'Product' },
+                      { key: 'variant', label: 'Variant' },
+                      { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> }
+                    ]}
+                    rows={lowStock.data?.rows || []}
+                  />
+                )}
               </Panel>
             </div>
 
             <Panel title="System activity logs" subtitle="Every module action, newest first">
-              <EmptyState title="NO ACTIVITY LOGGED YET" note="Sign-ins, sales, stock movements and configuration changes will be recorded here as the system is used." />
+              <ErrorNote message={logs.error} />
+              {logs.loading ? <Loading /> : (
+                <DataTable
+                  keyField="id"
+                  emptyTitle="NO ACTIVITY LOGGED YET"
+                  columns={[
+                    { key: 'time', label: 'Time', width: 180, render: (r) => fmtDateTime(r.time) },
+                    { key: 'user', label: 'User' },
+                    { key: 'action', label: 'Action' },
+                    { key: 'type', label: 'Type' }
+                  ]}
+                  rows={(logs.data || []).slice(0, 8)}
+                />
+              )}
             </Panel>
           </>
         );

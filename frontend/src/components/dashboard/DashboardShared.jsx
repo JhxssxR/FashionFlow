@@ -1,5 +1,5 @@
 import React from 'react';
-import { statusTone } from '../../data/dashboardData';
+import { statusTone } from '../../utils';
 
 export function StatCard({ label, value, sub, tone = 'gold' }) {
   return (
@@ -61,8 +61,19 @@ export function EmptyState({ title = 'NO RECORDS YET', note }) {
     <div className="table-empty">
       <strong className="table-empty-title">{title}</strong>
       <span className="table-empty-note">
-        {note || 'This module is wired and ready — records will appear here once the C# database is connected.'}
+        {note || 'No records found.'}
       </span>
     </div>
   );
+}
+
+// Shown while an API call is in flight; keeps panel layout stable.
+export function Loading({ label = 'LOADING…' }) {
+  return <div className="table-empty"><span className="table-empty-note">{label}</span></div>;
+}
+
+// Inline error banner for failed API calls (Error Handling criterion).
+export function ErrorNote({ message }) {
+  if (!message) return null;
+  return <div className="api-error">{message}</div>;
 }

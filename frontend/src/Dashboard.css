@@ -869,3 +869,175 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- API-wired states (loading, errors, inline forms, POS cart) ---------- */
+.api-error {
+  background: #fdf1f0;
+  border: 1px solid #f0c9c6;
+  color: #a03d36;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.form-ok {
+  background: #eef7f1;
+  border: 1px solid #c8e4d2;
+  color: #2e6b4a;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.form-row input,
+.form-row select {
+  flex: 1 1 150px;
+  min-width: 0;
+  border: 1px solid #e0e0dd;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+  outline: 2px solid rgba(205, 168, 88, 0.4);
+  border-color: #cda858;
+}
+
+.panel .mini-btn {
+  cursor: pointer;
+}
+
+.panel .mini-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.cart-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e7e7e4;
+}
+
+.cart-line-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cart-line-info strong {
+  font-size: 13px;
+}
+
+.cart-line-info span {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+
+.cart-line-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-line-qty button {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #e0e0dd;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.cart-line-qty button:hover {
+  border-color: #cda858;
+}
+
+.cart-line > strong {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pos-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.pos-controls select,
+.pos-controls input {
+  width: 100%;
+  border: 1px solid #e0e0dd;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.pos-controls-row {
+  display: flex;
+  gap: 10px;
+}
+
+.pos-controls-row > * {
+  flex: 1;
+}
+
+.pos-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #faf9f5;
+  border: 1px dashed #cda858;
+  border-radius: 10px;
+  padding: 18px 16px;
+  font-size: 13px;
+}
+
+.pos-receipt-title {
+  color: #2e6b4a;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+
+.pos-product:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.badge.low {
+  background: #c0564f;
+  color: #fff;
+}
+
+.storefront-loading {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: #9a9a9a;
+  padding: 48px 0;
+}

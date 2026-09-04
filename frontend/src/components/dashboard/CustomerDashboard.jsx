@@ -1,147 +1,207 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, EmptyState } from './DashboardShared';
-import { peso, CUSTOMER_TIER, PRODUCTS } from '../../data/dashboardData';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import { useApi, api } from '../../api/client';
+import { peso, num, fmtDate } from '../../utils';
 
-const CustomerDashboard = () => (
-  <DashboardLayout role="customer">
-    {(page) => {
-      if (page === 'orders') {
-        return (
-          <Panel title="Purchase history" subtitle="Every order, receipt and points earned" action={<a href="#" className="panel-link" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>SHOP THE STORE →</a>}>
-            <DataTable
-              keyField="id"
-              emptyTitle="NO PURCHASES YET"
-              emptyNote="Your orders will appear here after your first purchase — with receipts, delivery status and points earned."
-              columns={[
-                { key: 'id', label: 'Order' },
-                { key: 'date', label: 'Date' },
-                { key: 'items', label: 'Items' },
-                { key: 'total', label: 'Total' },
-                { key: 'status', label: 'Status' }
-              ]}
-              rows={[]}
-            />
-          </Panel>
-        );
-      }
+const LoyaltyCard = ({ loyalty, onChanged }) => {
+  const [redeemPoints, setRedeemPoints] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
 
-      if (page === 'loyalty') {
-        const tierProgress = Math.round((CUSTOMER_TIER.points / (CUSTOMER_TIER.points + CUSTOMER_TIER.pointsToNext)) * 100);
+  if (!loyalty) return null;
+  const tierProgress = loyalty.pointsToNext > 0
+    ? Math.min(100, Math.round((loyalty.points / (loyalty.points + loyalty.pointsToNext)) * 100))
+    : 100;
+
+  const redeem = async () => {
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      const res = await api('/api/loyalty/redeem', {
+        method: 'POST',
+        body: { points: Number(redeemPoints), note: `Redeemed ${redeemPoints} points for voucher` }
+      });
+      setMsg(`Redeemed ${redeemPoints} points — ${num(res.points)} left.`);
+      setRedeemPoints('');
+      onChanged();
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="loyalty-card">
+      <div className="loyalty-top">
+        <div>
+          <span className="loyalty-tier">{loyalty.tier} Member</span>
+          <strong className="loyalty-points">{num(loyalty.points)} pts</strong>
+        </div>
+        <span className="loyalty-brand">FASHIONFLOW REWARDS</span>
+      </div>
+      <div className="loyalty-bar">
+        <span style={{ width: `${tierProgress}%` }} />
+      </div>
+      <div className="loyalty-meta">
+        <span>{tierProgress}% to {loyalty.nextTier}</span>
+        <span>{num(loyalty.pointsToNext)} points to go</span>
+      </div>
+      <ul className="perk-list">
+        {(loyalty.perks || []).map((perk) => (
+          <li key={perk}>{perk}</li>
+        ))}
+      </ul>
+      <div className="form-row">
+        <input
+          type="number"
+          min="1"
+          placeholder="Points to redeem"
+          value={redeemPoints}
+          onChange={(e) => setRedeemPoints(e.target.value)}
+        />
+        <button className="mini-btn" onClick={redeem} disabled={busy || !redeemPoints}>
+          {busy ? 'REDEEMING…' : 'REDEEM POINTS'}
+        </button>
+      </div>
+      {err && <ErrorNote message={err} />}
+      {msg && <div className="form-ok">{msg}</div>}
+    </div>
+  );
+};
+
+const CustomerDashboard = ({ user }) => {
+  const [tick, setTick] = useState(0);
+  const loyalty = useApi('/api/loyalty/mine', [tick]);
+  const orders = useApi('/api/sales/mine', [tick]);
+  const promos = useApi('/api/promotions/active', [tick]);
+  const products = useApi('/api/products');
+  const bump = () => setTick((t) => t + 1);
+
+  const lifetime = (orders.data || []).reduce((s, o) => s + o.total, 0);
+  const orderRows = (orders.data || []).map((o) => ({ ...o, dateLabel: fmtDate(o.date) }));
+
+  const loyaltyPanel = (
+    <Panel title="Loyalty program" subtitle="Earn 1 point for every ₱100 — redeem at checkout">
+      <ErrorNote message={loyalty.error} />
+      {loyalty.loading && !loyalty.data ? <Loading /> : <LoyaltyCard loyalty={loyalty.data} onChanged={bump} />}
+    </Panel>
+  );
+
+  const ordersPanel = (compact = false) => (
+    <Panel title="Purchase history" subtitle="Every order, receipt and points earned" action={
+      <a href="#" className="panel-link" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>SHOP THE STORE →</a>
+    }>
+      <ErrorNote message={orders.error} />
+      {orders.loading && !orders.data ? <Loading /> : (
+        <DataTable
+          keyField="id"
+          emptyTitle="NO PURCHASES YET"
+          emptyNote="Your orders appear here after your first purchase — with receipts, delivery status and points earned."
+          columns={[
+            { key: 'id', label: 'Order' },
+            { key: 'dateLabel', label: 'Date' },
+            { key: 'items', label: 'Items' },
+            { key: 'total', label: 'Total', render: (r) => peso(r.total) },
+            { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+            ...(compact ? [] : [{ key: 'points', label: 'Points', render: (r) => (r.points > 0 ? `+${r.points}` : '—') }])
+          ]}
+          rows={orderRows}
+        />
+      )}
+    </Panel>
+  );
+
+  const promosPanel = (title) => (
+    <Panel title={title} subtitle="Apply these codes at checkout">
+      <ErrorNote message={promos.error} />
+      {promos.loading ? <Loading /> : (
+        <DataTable
+          keyField="code"
+          emptyTitle="NO PROMOTIONS YET"
+          emptyNote="Active promo codes and member-exclusive offers appear here."
+          columns={[
+            { key: 'code', label: 'Code' },
+            { key: 'description', label: 'Offer' },
+            { key: 'validTo', label: 'Valid until', render: (r) => fmtDate(r.validTo) },
+            { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
+          ]}
+          rows={(promos.data || []).filter((p) => !p.appliesTo.startsWith('Tier:') || p.appliesTo === `Tier:${loyalty.data?.tier}`)}
+        />
+      )}
+    </Panel>
+  );
+
+  return (
+    <DashboardLayout role="customer" user={user}>
+      {(page) => {
+        if (page === 'orders') return ordersPanel();
+
+        if (page === 'loyalty') {
+          return (
+            <>
+              {loyaltyPanel}
+              <Panel title="Points history" subtitle="How you earned and redeemed">
+                <ErrorNote message={loyalty.error} />
+                {loyalty.loading ? <Loading /> : (
+                  <DataTable
+                    keyField="date"
+                    emptyTitle="NO POINTS HISTORY YET"
+                    emptyNote="Points earned from purchases and redemptions at checkout are listed here."
+                    columns={[
+                      { key: 'date', label: 'When', width: 180, render: (r) => new Date(r.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) },
+                      { key: 'note', label: 'Activity' },
+                      { key: 'earned', label: 'Earned', render: (r) => (r.earned > 0 ? `+${r.earned}` : '—') },
+                      { key: 'redeemed', label: 'Redeemed', render: (r) => (r.redeemed > 0 ? `−${r.redeemed}` : '—') }
+                    ]}
+                    rows={loyalty.data?.ledger || []}
+                  />
+                )}
+              </Panel>
+            </>
+          );
+        }
+
+        if (page === 'promos') return promosPanel('My promotions');
+
+        // overview — My Dashboard
         return (
           <>
-            <Panel title="Loyalty program" subtitle="Earn 1 point for every ₱100 — redeem at checkout">
-              <div className="loyalty-card">
-                <div className="loyalty-top">
-                  <div>
-                    <span className="loyalty-tier">{CUSTOMER_TIER.name} Member</span>
-                    <strong className="loyalty-points">{CUSTOMER_TIER.points.toLocaleString('en-PH')} pts</strong>
-                  </div>
-                  <span className="loyalty-brand">FASHIONFLOW REWARDS</span>
-                </div>
-                <div className="loyalty-bar">
-                  <span style={{ width: `${tierProgress}%` }} />
-                </div>
-                <div className="loyalty-meta">
-                  <span>{tierProgress}% to {CUSTOMER_TIER.nextTier}</span>
-                  <span>{CUSTOMER_TIER.pointsToNext} points to go</span>
-                </div>
-                <ul className="perk-list">
-                  {CUSTOMER_TIER.perks.map((perk) => (
-                    <li key={perk}>{perk}</li>
-                  ))}
-                </ul>
-                <button className="mini-btn wide" onClick={(e) => e.preventDefault()}>REDEEM POINTS</button>
+            <div className="stat-grid">
+              <StatCard label="LOYALTY POINTS" value={num(loyalty.data?.points)} sub={`${num(loyalty.data?.pointsToNext)} more to ${loyalty.data?.nextTier || '—'}`} />
+              <StatCard label="TOTAL ORDERS" value={num(orders.data?.length)} sub="Receipts on your account" tone="purple" />
+              <StatCard label="LIFETIME SPEND" value={peso(lifetime)} sub="Across POS and online orders" tone="dark" />
+              <StatCard label="TIER" value={loyalty.data?.tier || '—'} sub="Free shipping + early drops" tone="green" />
+            </div>
+
+            <div className="panel-grid panel-grid-1-1">
+              {loyaltyPanel}
+              {promosPanel('Active promotions for you')}
+            </div>
+
+            {ordersPanel(true)}
+
+            <Panel title="Recommended for you" subtitle="From the live catalog" action={
+              <a href="#" className="panel-link" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>SHOP THE STORE →</a>
+            }>
+              <div className="reco-grid">
+                {(products.data || []).slice(0, 4).map((p) => (
+                  <a key={p.id} href="#" className="reco-card" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>
+                    <strong>{p.name}</strong>
+                    <span>{p.variant}</span>
+                    <em>{peso(p.price)}</em>
+                  </a>
+                ))}
               </div>
-            </Panel>
-            <Panel title="Points history" subtitle="How you earned and redeemed">
-              <EmptyState title="NO POINTS HISTORY YET" note="Points earned from purchases and redemptions at checkout will be listed here." />
             </Panel>
           </>
         );
-      }
-
-      if (page === 'promos') {
-        return (
-          <Panel title="My promotions" subtitle="Apply these codes at checkout">
-            <EmptyState title="NO PROMOTIONS YET" note="Active promo codes and member-exclusive offers will appear here." />
-          </Panel>
-        );
-      }
-
-      // overview — My Dashboard
-      const tierProgress = Math.round((CUSTOMER_TIER.points / (CUSTOMER_TIER.points + CUSTOMER_TIER.pointsToNext)) * 100);
-      return (
-        <>
-          <div className="stat-grid">
-            <StatCard label="LOYALTY POINTS" value={CUSTOMER_TIER.points.toLocaleString('en-PH')} sub={`${CUSTOMER_TIER.pointsToNext} more to ${CUSTOMER_TIER.nextTier}`} />
-            <StatCard label="TOTAL ORDERS" value="0" sub="No purchases yet" tone="purple" />
-            <StatCard label="LIFETIME SPEND" value={peso(0)} sub="Member since March 2026" tone="dark" />
-            <StatCard label="TIER" value={CUSTOMER_TIER.name} sub="Free shipping + early drops" tone="green" />
-          </div>
-
-          <div className="panel-grid panel-grid-1-1">
-            <Panel title="Loyalty program" subtitle="Earn 1 point for every ₱100 — redeem at checkout">
-              <div className="loyalty-card">
-                <div className="loyalty-top">
-                  <div>
-                    <span className="loyalty-tier">{CUSTOMER_TIER.name} Member</span>
-                    <strong className="loyalty-points">{CUSTOMER_TIER.points.toLocaleString('en-PH')} pts</strong>
-                  </div>
-                  <span className="loyalty-brand">FASHIONFLOW REWARDS</span>
-                </div>
-                <div className="loyalty-bar">
-                  <span style={{ width: `${tierProgress}%` }} />
-                </div>
-                <div className="loyalty-meta">
-                  <span>{tierProgress}% to {CUSTOMER_TIER.nextTier}</span>
-                  <span>{CUSTOMER_TIER.pointsToNext} points to go</span>
-                </div>
-                <ul className="perk-list">
-                  {CUSTOMER_TIER.perks.map((perk) => (
-                    <li key={perk}>{perk}</li>
-                  ))}
-                </ul>
-                <button className="mini-btn wide" onClick={(e) => e.preventDefault()}>REDEEM POINTS</button>
-              </div>
-            </Panel>
-
-            <Panel title="Active promotions for you" subtitle="Apply these codes at checkout">
-              <EmptyState title="NO PROMOTIONS YET" note="Active promo codes and member-exclusive offers will appear here." />
-            </Panel>
-          </div>
-
-          <Panel title="Purchase history" subtitle="Every order, receipt and points earned">
-            <DataTable
-              keyField="id"
-              emptyTitle="NO PURCHASES YET"
-              emptyNote="Your orders will appear here after your first purchase — with receipts, delivery status and points earned."
-              columns={[
-                { key: 'id', label: 'Order' },
-                { key: 'date', label: 'Date' },
-                { key: 'items', label: 'Items' },
-                { key: 'total', label: 'Total' },
-                { key: 'status', label: 'Status' }
-              ]}
-              rows={[]}
-            />
-          </Panel>
-
-          <Panel title="Recommended for you" subtitle="Based on your membership" action={<a href="#" className="panel-link" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>SHOP THE STORE →</a>}>
-            <div className="reco-grid">
-              {PRODUCTS.slice(0, 4).map((p) => (
-                <a key={p.id} href="#" className="reco-card" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>
-                  <strong>{p.name}</strong>
-                  <span>{p.variant}</span>
-                  <em>{peso(p.price)}</em>
-                </a>
-              ))}
-            </div>
-          </Panel>
-        </>
-      );
-    }}
-  </DashboardLayout>
-);
+      }}
+    </DashboardLayout>
+  );
+};
 
 export default CustomerDashboard;

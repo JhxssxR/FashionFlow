@@ -17,9 +17,9 @@ const DASHBOARDS = {
   supplier: SupplierDashboard
 };
 
-const DashboardRouter = ({ role }) => {
+const DashboardRouter = ({ role, user }) => {
   const Dashboard = DASHBOARDS[role] || AdminDashboard;
-  return <Dashboard />;
+  return <Dashboard user={user} />;
 };
 
 export default DashboardRouter;

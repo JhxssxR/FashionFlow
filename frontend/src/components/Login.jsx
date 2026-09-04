@@ -1,24 +1,47 @@
 import React, { useState } from 'react';
-import { ROLE_CREDENTIALS, findRoleByEmail } from '../data/dashboardData';
+import { api, saveAuth } from '../api/client';
+
+// Demo accounts from the project documentation — chips prefill the email;
+// the password is typed (credentials are verified by the API, never trusted
+// client-side).
+const DEMO_ACCOUNTS = [
+  { label: 'Administrator', email: 'admin@fashionflow.com' },
+  { label: 'Inventory Manager', email: 'inventman@fashionflow.com' },
+  { label: 'Purchasing Officer', email: 'purchase@fashionflow.com' },
+  { label: 'Sales Staff', email: 'sales@fashionflow.com' },
+  { label: 'Customer', email: 'customer@fashionflow.com' },
+  { label: 'Accountant', email: 'accountan@fashionflow.com' },
+  { label: 'Supplier', email: 'supplier@fashionflow.com' }
+];
 
 const Login = ({ onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const match = findRoleByEmail(email);
-    if (match) {
-      setError('');
-      window.location.hash = `dashboard/${match.role}`;
-    } else {
-      setError('No FashionFlow account found for that email. Try a demo account below.');
+    setBusy(true);
+    setError('');
+    try {
+      const res = await api('/api/auth/login', {
+        method: 'POST',
+        body: { email, password }
+      });
+      saveAuth({ token: res.token, user: res.user });
+      window.location.hash = `dashboard/${res.user.dashboardKey}`;
+    } catch (err) {
+      setError(err.message || 'Sign-in failed. Please try again.');
+    } finally {
+      setBusy(false);
     }
   };
 
-  const goToRole = (role) => {
-    window.location.hash = `dashboard/${role}`;
+  const prefill = (demoEmail) => {
+    setEmail(demoEmail);
+    setPassword('');
+    setError('');
   };
 
   return (
@@ -29,13 +52,13 @@ const Login = ({ onBack }) => {
         <img src="/assets/login-editorial.jpg" alt="Flat lay of clothing inventory — trousers, tee, watch and sneakers" className="login-left-img" />
         <div className="login-left-overlay">
           <div className="login-left-content">
-            <span className="login-left-tag">ERP &amp; CRM &mdash; CLOTHING BUSINESS</span>
+            <span className="login-left-tag">ERP &amp; CRM — CLOTHING BUSINESS</span>
             <h1 className="login-left-heading">
               Built for<br />Fashion.<br />Designed<br />for Scale.
             </h1>
             <p className="login-left-desc">
-              Every module your clothing business needs &mdash;<br />
-              inventory, purchasing, sales, and more &mdash; unified<br />
+              Every module your clothing business needs —<br />
+              inventory, purchasing, sales, and more — unified<br />
               in one place.
             </p>
           </div>
@@ -85,7 +108,7 @@ const Login = ({ onBack }) => {
             <div className="form-group">
               <div className="label-row">
                 <label htmlFor="password">PASSWORD</label>
-                <a href="#forgot-password" className="forgot-link">FORGOT PASSWORD?</a>
+                <span className="forgot-link">FORGOT PASSWORD?</span>
               </div>
               <input
                 type="password"
@@ -99,8 +122,8 @@ const Login = ({ onBack }) => {
 
             {error && <p className="login-error">{error}</p>}
 
-            <button type="submit" className="login-submit-btn">
-              SIGN IN &rarr;
+            <button type="submit" className="login-submit-btn" disabled={busy}>
+              {busy ? 'SIGNING IN…' : 'SIGN IN →'}
             </button>
           </form>
 
@@ -109,8 +132,8 @@ const Login = ({ onBack }) => {
           </div>
 
           <div className="login-demo-chips">
-            {ROLE_CREDENTIALS.map((cred) => (
-              <button key={cred.role} className="login-chip" onClick={() => goToRole(cred.role)}>
+            {DEMO_ACCOUNTS.map((cred) => (
+              <button key={cred.email} type="button" className="login-chip" onClick={() => prefill(cred.email)}>
                 {cred.label}
               </button>
             ))}

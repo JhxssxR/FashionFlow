@@ -6,6 +6,7 @@ import BannerCTA from './components/BannerCTA'
 import Footer from './components/Footer'
 import Login from './components/Login'
 import DashboardRouter from './components/dashboard/DashboardRouter'
+import { getAuth } from './api/client'
 import './App.css'
 import './Dashboard.css'
 
@@ -18,6 +19,7 @@ if ('scrollRestoration' in history) {
 function App() {
   const [view, setView] = useState('store')
   const [dashRole, setDashRole] = useState('admin')
+  const [authUser, setAuthUser] = useState(null)
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -25,7 +27,17 @@ function App() {
       if (hash === '#login') {
         setView('login')
       } else if (hash.startsWith('#dashboard/')) {
-        setDashRole(hash.replace('#dashboard/', ''))
+        const role = hash.replace('#dashboard/', '')
+        // Route guard: a dashboard is only reachable with a valid signed-in
+        // user whose role matches the route (server-side RBAC also protects
+        // every API call; this just avoids rendering the wrong shell).
+        const auth = getAuth()
+        if (!auth?.user || auth.user.dashboardKey !== role) {
+          window.location.hash = 'login'
+          return
+        }
+        setAuthUser(auth.user)
+        setDashRole(role)
         setView('dashboard')
       } else {
         setView('store')
@@ -80,7 +92,7 @@ function App() {
   }
 
   if (view === 'dashboard') {
-    return <DashboardRouter role={dashRole} />
+    return <DashboardRouter role={dashRole} user={authUser} />
   }
 
   return (

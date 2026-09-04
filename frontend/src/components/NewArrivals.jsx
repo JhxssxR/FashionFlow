@@ -1,127 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useApi } from '../api/client';
+import { peso, fmtDate } from '../utils';
 
 // Categories mirror the header nav (WOMEN / MEN / OUTERWEAR / SALE).
 // A product counts as SALE whenever it has an originalPrice.
-// isNew marks the rotating "New Arrivals" storefront selection.
-const products = [
-  {
-    id: 1,
-    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=600&auto=format&fit=crop',
-    title: 'Linen Blazer',
-    subcategory: 'Outerwear • Brown',
-    category: 'Outerwear',
-    price: '₱7,480',
-    originalPrice: null,
-    isNew: true
-  },
-  {
-    id: 2,
-    image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=600&auto=format&fit=crop',
-    title: 'Midi Wrap Dress',
-    subcategory: 'Dresses • Blue',
-    category: 'Women',
-    price: '₱9,220',
-    originalPrice: '₱10,960',
-    isNew: true
-  },
-  {
-    id: 3,
-    image: 'https://images.unsplash.com/photo-1598554747436-c9293d6a588f?q=80&w=600&auto=format&fit=crop',
-    title: 'Wide Leg Trousers',
-    subcategory: 'Bottoms • Multi',
-    category: 'Women',
-    price: '₱5,160',
-    originalPrice: '₱6,900',
-    isNew: true
-  },
-  {
-    id: 4,
-    image: 'https://images.unsplash.com/photo-1559551409-dadc959f76b8?q=80&w=600&auto=format&fit=crop',
-    title: 'Faux Leather Jacket',
-    subcategory: 'Outerwear • Brown',
-    category: 'Outerwear',
-    price: '₱11,540',
-    originalPrice: null,
-    isNew: true
-  },
-  {
-    id: 5,
-    image: 'https://images.unsplash.com/photo-1618932260643-eee4a2f652a6?q=80&w=600&auto=format&fit=crop',
-    title: 'Silk Slip Dress',
-    subcategory: 'Dresses • Floral',
-    category: 'Women',
-    price: '₱8,640',
-    originalPrice: '₱10,960',
-    isNew: true
-  },
-  {
-    id: 6,
-    image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600&auto=format&fit=crop',
-    title: 'Floral Wrap Maxi Dress',
-    subcategory: 'Dresses • Ivory',
-    category: 'Women',
-    price: '₱9,480',
-    originalPrice: null,
-    isNew: true
-  },
-  {
-    id: 7,
-    image: 'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?q=80&w=600&auto=format&fit=crop',
-    title: 'Tulle Midi Dress',
-    subcategory: 'Dresses • Blush',
-    category: 'Women',
-    price: '₱10,980',
-    originalPrice: null,
-    isNew: true
-  },
-  {
-    id: 8,
-    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=600&auto=format&fit=crop',
-    title: 'Chambray Shirt',
-    subcategory: 'Shirts • Indigo',
-    category: 'Men',
-    price: '₱4,980',
-    originalPrice: '₱6,480',
-    isNew: true
-  },
-  {
-    id: 9,
-    image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=600&auto=format&fit=crop',
-    title: 'Essential Crew Tee',
-    subcategory: 'Tops • White',
-    category: 'Men',
-    price: '₱2,490',
-    originalPrice: null
-  },
-  {
-    id: 10,
-    image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?q=80&w=600&auto=format&fit=crop',
-    title: 'Straight Denim',
-    subcategory: 'Bottoms • Indigo',
-    category: 'Men',
-    price: '₱5,980',
-    originalPrice: null
-  },
-  {
-    id: 11,
-    image: 'https://images.unsplash.com/photo-1544923246-77307dd654cb?q=80&w=600&auto=format&fit=crop',
-    title: 'Sherpa Denim Jacket',
-    subcategory: 'Outerwear • Indigo',
-    category: 'Outerwear',
-    price: '₱10,480',
-    originalPrice: '₱12,980'
-  },
-  {
-    id: 12,
-    image: 'https://images.unsplash.com/photo-1548126032-079a0fb0099d?q=80&w=600&auto=format&fit=crop',
-    title: 'Quilted Bomber Jacket',
-    subcategory: 'Outerwear • Black',
-    category: 'Outerwear',
-    price: '₱9,980',
-    originalPrice: null
-  }
-];
-
+// Data comes live from the Products and Promotions tables.
 const categories = ['All', 'Women', 'Men', 'Outerwear', 'Sale'];
 const newArrivalsCount = 8;
 
@@ -140,28 +23,18 @@ const sectionScrollTargets = {
   '#offers': 'offers'
 };
 
-const offers = [
-  {
-    code: 'SCHOOL15',
-    description: '15% off all bottoms',
-    validity: 'Until Aug 31'
-  },
-  {
-    code: 'FF200',
-    description: '₱200 off orders ₱2,000+',
-    validity: 'Until Sep 15'
-  },
-  {
-    code: 'CLEAR30',
-    description: '30% off clearance',
-    validity: 'Until Aug 20'
-  }
-];
-
 const NewArrivals = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
   const sectionRef = useRef(null);
+
+  const products = useApi('/api/products');
+  const offersQ = useApi('/api/promotions/active');
+  const offers = (offersQ.data || []).slice(0, 3).map((p) => ({
+    code: p.code,
+    description: p.description,
+    validity: `Until ${fmtDate(p.validTo)}`
+  }));
 
   const copyToClipboard = (code, e) => {
     navigator.clipboard.writeText(code).then(() => {
@@ -231,15 +104,16 @@ const NewArrivals = () => {
         ?.querySelectorAll('.product-card.reveal:not(.is-visible)')
         .forEach((el) => el.classList.add('is-visible'));
     });
-  }, [activeCategory, showAll]);
+  }, [activeCategory, showAll, products.data]);
 
-  const filteredProducts = products.filter((product) => {
+  const allProducts = products.data || [];
+  const filteredProducts = allProducts.filter((product) => {
     if (activeCategory === 'All') return true;
     if (activeCategory === 'Sale') return Boolean(product.originalPrice);
-    return product.category === activeCategory;
+    return product.storefrontCategory === activeCategory;
   });
 
-  const visibleProducts = showAll ? filteredProducts : products.slice(0, newArrivalsCount);
+  const visibleProducts = showAll ? filteredProducts : allProducts.slice(0, newArrivalsCount);
 
   const selectCategory = (category) => {
     setActiveCategory(category);
@@ -299,6 +173,13 @@ const NewArrivals = () => {
         ))}
       </div>
 
+      {products.loading && allProducts.length === 0 && (
+        <p className="storefront-loading">LOADING THE COLLECTION…</p>
+      )}
+      {products.error && (
+        <p className="storefront-loading">The catalog is unavailable right now — please refresh in a moment.</p>
+      )}
+
       <div className="product-grid">
         {visibleProducts.map((product, index) => (
           <div key={product.id} className="product-card reveal" style={{ transitionDelay: `${(index % 4) * 0.12}s` }}>
@@ -307,16 +188,17 @@ const NewArrivals = () => {
                 <div className="badge-row">
                   {product.isNew && <span className="badge new">NEW</span>}
                   {product.originalPrice && <span className="badge sale">SALE</span>}
+                  {product.stock <= 5 && <span className="badge low">LOW STOCK</span>}
                 </div>
               )}
-              <img src={product.image} alt={product.title} loading="lazy" />
+              <img src={product.imageUrl} alt={product.name} loading="lazy" />
             </div>
             <div className="product-info">
-              <h3 className="product-name">{product.title}</h3>
-              <p className="product-category">{product.subcategory}</p>
+              <h3 className="product-name">{product.name}</h3>
+              <p className="product-category">{product.category} • {product.variant}</p>
               <div className="product-price-wrapper">
-                <span className="product-price">{product.price}</span>
-                {product.originalPrice && <span className="product-original-price">{product.originalPrice}</span>}
+                <span className="product-price">{peso(product.price)}</span>
+                {product.originalPrice && <span className="product-original-price">{peso(product.originalPrice)}</span>}
               </div>
             </div>
           </div>
