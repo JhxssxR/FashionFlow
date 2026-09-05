@@ -35,24 +35,28 @@ export function DataTable({ columns, rows, keyField, emptyTitle, emptyNote }) {
     return <EmptyState title={emptyTitle} note={emptyNote} />;
   }
   return (
-    <table className="data-table">
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.key} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row[keyField]}>
+    // .table-scroll lets wide tables swipe sideways on phones instead of
+    // stretching the whole dashboard page.
+    <div className="table-scroll">
+      <table className="data-table">
+        <thead>
+          <tr>
             {columns.map((col) => (
-              <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
+              <th key={col.key} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row[keyField]}>
+              {columns.map((col) => (
+                <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

@@ -153,6 +153,31 @@
   display: none;
 }
 
+/* Hamburger — only shown on small screens (see the media queries below) */
+.dash-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dcdcd8;
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dash-backdrop {
+  display: none;
+}
+
+/* Wide tables swipe sideways on phones instead of stretching the page */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .dash-page-title {
   font-family: var(--font-display);
   font-size: 1.35rem;
@@ -901,9 +926,37 @@
 }
 
 @media (max-width: 860px) {
+  /* The sidebar slides in over the page; the hamburger in the topbar
+     toggles it (before, it was display:none — navigation was unreachable). */
   .dash-sidebar {
-    display: none;
+    display: flex;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 70;
+    width: min(280px, 82vw);
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    box-shadow: 18px 0 50px rgba(0, 0, 0, 0.25);
   }
+
+  .dash-shell.nav-open .dash-sidebar {
+    transform: translateX(0);
+  }
+
+  .dash-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 60;
+  }
+
+  .dash-menu-btn {
+    display: inline-flex;
+  }
+
   .dash-mobile-brand {
     display: inline-flex;
     align-items: center;
@@ -913,13 +966,38 @@
     filter: brightness(0) invert(1);
   }
   .dash-topbar {
-    padding: 16px 20px;
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  .dash-page-title {
+    font-size: 1.1rem;
+  }
+  .dash-page-date {
+    display: none;
   }
   .dash-content {
     padding: 18px 16px 32px;
   }
   .stat-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .reco-grid {
+    grid-template-columns: 1fr;
+  }
+  .pager {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 8px;
+  }
+  .dash-role-chip {
+    display: none;
+  }
+  .inline-form .form-row input,
+  .inline-form .form-row select {
+    flex: 1 1 100%;
   }
 }
 

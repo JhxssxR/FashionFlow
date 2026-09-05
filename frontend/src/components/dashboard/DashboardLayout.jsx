@@ -59,6 +59,7 @@ const ROLE_CONFIG = {
       { id: 'overview', label: 'My Dashboard' },
       { id: 'orders', label: 'Purchase History' },
       { id: 'loyalty', label: 'Loyalty Points' },
+      { id: 'rewards', label: 'Rewards Store' },
       { id: 'promos', label: 'My Promotions' }
     ],
     activePage: 'overview'
@@ -89,6 +90,7 @@ const ROLE_CONFIG = {
 const DashboardLayout = ({ role, user, children }) => {
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.admin;
   const [activePage, setActivePage] = React.useState(config.activePage);
+  const [navOpen, setNavOpen] = React.useState(false);
   const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
 
   const goStore = (e) => {
@@ -103,7 +105,8 @@ const DashboardLayout = ({ role, user, children }) => {
   };
 
   return (
-    <div className="dash-shell">
+    <div className={`dash-shell${navOpen ? ' nav-open' : ''}`}>
+      {navOpen && <div className="dash-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className="dash-sidebar">
         <a href="#" className="dash-brand" onClick={goStore}>
           <img src="/assets/no background logo.png" alt="FashionFlow" />
@@ -115,7 +118,7 @@ const DashboardLayout = ({ role, user, children }) => {
             <a
               key={page.id}
               href="#"
-              onClick={(e) => { e.preventDefault(); setActivePage(page.id); }}
+              onClick={(e) => { e.preventDefault(); setActivePage(page.id); setNavOpen(false); }}
               className={`dash-nav-item${page.id === activePage ? ' active' : ''}`}
             >
               {page.label}
@@ -142,6 +145,18 @@ const DashboardLayout = ({ role, user, children }) => {
 
       <div className="dash-main">
         <header className="dash-topbar">
+          <button
+            type="button"
+            className="dash-menu-btn"
+            aria-label={navOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setNavOpen((o) => !o)}
+          >
+            {navOpen ? (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
+            )}
+          </button>
           <a href="#" className="dash-mobile-brand" onClick={goStore}>
             <img src="/assets/no background logo.png" alt="FashionFlow" />
           </a>
