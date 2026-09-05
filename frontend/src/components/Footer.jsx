@@ -18,7 +18,7 @@ const socials = [
   },
   {
     name: 'Facebook',
-    href: '#facebook',
+    href: 'https://www.facebook.com/profile.php?id=61594336070512',
     icon: (
       <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
         <path d="M13.5 21v-7h2.4l.4-3h-2.8V9.1c0-.9.3-1.5 1.6-1.5h1.3V4.9c-.3 0-1.1-.1-2-.1-2.1 0-3.5 1.3-3.5 3.6V11H8.5v3h2.4v7h2.6z" />
@@ -57,7 +57,13 @@ const Footer = () => {
             </p>
             <div className="footer-socials">
               {socials.map((social) => (
-                <a key={social.name} href={social.href} aria-label={social.name}>
+                <a
+                  key={social.name}
+                  href={social.href}
+                  aria-label={social.name}
+                  target={social.href.startsWith('http') ? '_blank' : undefined}
+                  rel={social.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                >
                   {social.icon}
                 </a>
               ))}
@@ -99,7 +105,13 @@ const Footer = () => {
 
         <div className="footer-bottom">
           <span className="copyright">© 2026 FashionFlow. All rights reserved.</span>
-          <span className="footer-payments">Cash on Delivery · GCash · Maya · BPI · BDO</span>
+          <div className="footer-payments" aria-label="Accepted payment methods">
+            <span className="pay-chip pay-chip-text" title="Cash on Delivery">COD</span>
+            <span className="pay-chip"><img src="/assets/payments/gcash.png" alt="GCash" /></span>
+            <span className="pay-chip"><img src="/assets/payments/maya.png" alt="Maya" /></span>
+            <span className="pay-chip"><img src="/assets/payments/bpi.png" alt="BPI" /></span>
+            <span className="pay-chip"><img src="/assets/payments/bdo.png" alt="BDO" /></span>
+          </div>
           <div className="footer-legal">
             <a href="#privacy">Privacy</a>
             <a href="#terms">Terms</a>
