@@ -298,28 +298,66 @@ public static class DbSeed
         return true;
     }
 
-    // The storefront groups products by style and opens a size picker before
-    // anything is added to the cart, so every style needs one row per size
-    // (each with its own stock). The original seed shipped one variant per
-    // style; this backfill adds the missing sizes to both fresh and existing
-    // databases. Idempotent: existing variants are skipped, deleted styles
-    // are left alone.
+    // The storefront opens a colour + size picker when a shopper chooses a
+    // style (the product photo follows the colour), so every style needs one
+    // row per size/colour combo — each with its own stock and image. The
+    // original seed shipped one variant per style; this backfill completes
+    // the matrix on both fresh and existing databases. Idempotent: existing
+    // variants are skipped, removed styles are left alone.
     public static async Task BackfillVariantSiblingsAsync(FashionFlowDbContext db)
     {
-        var defs = new (string name, string size, int stock)[]
+        // color/image null → the style's original colour (inherits its image).
+        // image non-null → an additional colour, one row per listed size.
+        var defs = new (string name, string size, string? color, int stock, string? image)[]
         {
-            ("Linen Blazer", "Small", 22), ("Linen Blazer", "Large", 17),
-            ("Midi Wrap Dress", "Medium", 8), ("Midi Wrap Dress", "Large", 0),
-            ("Wide Leg Trousers", "Small", 9), ("Wide Leg Trousers", "Large", 0),
-            ("Faux Leather Jacket", "Medium", 14), ("Faux Leather Jacket", "Small", 7),
-            ("Silk Slip Dress", "Medium", 19), ("Silk Slip Dress", "Large", 11),
-            ("Floral Wrap Maxi Dress", "Small", 3), ("Floral Wrap Maxi Dress", "Large", 6),
-            ("Tulle Midi Dress", "Medium", 4), ("Tulle Midi Dress", "Large", 2),
-            ("Chambray Shirt", "Medium", 25), ("Chambray Shirt", "Small", 18),
-            ("Essential Crew Tee", "Small", 40), ("Essential Crew Tee", "Large", 31),
-            ("Straight Denim", "30", 6), ("Straight Denim", "34", 9),
-            ("Sherpa Denim Jacket", "Small", 2), ("Sherpa Denim Jacket", "Large", 0),
-            ("Quilted Bomber Jacket", "Medium", 10), ("Quilted Bomber Jacket", "Small", 8)
+            ("Linen Blazer", "Small", null, 22, null), ("Linen Blazer", "Large", null, 17, null),
+            ("Linen Blazer", "Small", "Blue", 12, "/assets/colors/linen-blazer-blue.jpg"),
+            ("Linen Blazer", "Medium", "Blue", 18, "/assets/colors/linen-blazer-blue.jpg"),
+            ("Linen Blazer", "Large", "Blue", 9, "/assets/colors/linen-blazer-blue.jpg"),
+            ("Midi Wrap Dress", "Medium", null, 8, null), ("Midi Wrap Dress", "Large", null, 0, null),
+            ("Midi Wrap Dress", "Small", "Black", 7, "/assets/colors/midi-wrap-black.jpg"),
+            ("Midi Wrap Dress", "Medium", "Black", 0, "/assets/colors/midi-wrap-black.jpg"),
+            ("Midi Wrap Dress", "Large", "Black", 5, "/assets/colors/midi-wrap-black.jpg"),
+            ("Wide Leg Trousers", "Small", null, 9, null), ("Wide Leg Trousers", "Large", null, 0, null),
+            ("Wide Leg Trousers", "Small", "Beige", 6, "/assets/colors/trousers-beige.jpg"),
+            ("Wide Leg Trousers", "Medium", "Beige", 11, "/assets/colors/trousers-beige.jpg"),
+            ("Wide Leg Trousers", "Large", "Beige", 4, "/assets/colors/trousers-beige.jpg"),
+            ("Faux Leather Jacket", "Medium", null, 14, null), ("Faux Leather Jacket", "Small", null, 7, null),
+            ("Faux Leather Jacket", "Small", "Black", 10, "/assets/colors/leather-black.jpg"),
+            ("Faux Leather Jacket", "Medium", "Black", 13, "/assets/colors/leather-black.jpg"),
+            ("Faux Leather Jacket", "Large", "Black", 6, "/assets/colors/leather-black.jpg"),
+            ("Silk Slip Dress", "Medium", null, 19, null), ("Silk Slip Dress", "Large", null, 11, null),
+            ("Silk Slip Dress", "Small", "Emerald", 8, "/assets/colors/slip-emerald.jpg"),
+            ("Silk Slip Dress", "Medium", "Emerald", 12, "/assets/colors/slip-emerald.jpg"),
+            ("Silk Slip Dress", "Large", "Emerald", 0, "/assets/colors/slip-emerald.jpg"),
+            ("Floral Wrap Maxi Dress", "Small", null, 3, null), ("Floral Wrap Maxi Dress", "Large", null, 6, null),
+            ("Floral Wrap Maxi Dress", "Small", "Red", 5, "/assets/colors/maxi-red.jpg"),
+            ("Floral Wrap Maxi Dress", "Medium", "Red", 7, "/assets/colors/maxi-red.jpg"),
+            ("Floral Wrap Maxi Dress", "Large", "Red", 3, "/assets/colors/maxi-red.jpg"),
+            ("Tulle Midi Dress", "Medium", null, 4, null), ("Tulle Midi Dress", "Large", null, 2, null),
+            ("Tulle Midi Dress", "Small", "Lavender", 4, "/assets/colors/tulle-lavender.jpg"),
+            ("Tulle Midi Dress", "Medium", "Lavender", 6, "/assets/colors/tulle-lavender.jpg"),
+            ("Tulle Midi Dress", "Large", "Lavender", 2, "/assets/colors/tulle-lavender.jpg"),
+            ("Chambray Shirt", "Medium", null, 25, null), ("Chambray Shirt", "Small", null, 18, null),
+            ("Chambray Shirt", "Small", "White", 15, "/assets/colors/chambray-white.jpg"),
+            ("Chambray Shirt", "Medium", "White", 22, "/assets/colors/chambray-white.jpg"),
+            ("Chambray Shirt", "Large", "White", 14, "/assets/colors/chambray-white.jpg"),
+            ("Essential Crew Tee", "Small", null, 40, null), ("Essential Crew Tee", "Large", null, 31, null),
+            ("Essential Crew Tee", "Small", "Black", 30, "/assets/colors/tee-black.jpg"),
+            ("Essential Crew Tee", "Medium", "Black", 44, "/assets/colors/tee-black.jpg"),
+            ("Essential Crew Tee", "Large", "Black", 27, "/assets/colors/tee-black.jpg"),
+            ("Straight Denim", "30", null, 6, null), ("Straight Denim", "34", null, 9, null),
+            ("Straight Denim", "30", "Black", 7, "/assets/colors/denim-black.jpg"),
+            ("Straight Denim", "32", "Black", 12, "/assets/colors/denim-black.jpg"),
+            ("Straight Denim", "34", "Black", 8, "/assets/colors/denim-black.jpg"),
+            ("Sherpa Denim Jacket", "Small", null, 2, null), ("Sherpa Denim Jacket", "Large", null, 0, null),
+            ("Sherpa Denim Jacket", "Small", "Grey", 3, "/assets/colors/sherpa-grey.jpg"),
+            ("Sherpa Denim Jacket", "Medium", "Grey", 5, "/assets/colors/sherpa-grey.jpg"),
+            ("Sherpa Denim Jacket", "Large", "Grey", 0, "/assets/colors/sherpa-grey.jpg"),
+            ("Quilted Bomber Jacket", "Medium", null, 10, null), ("Quilted Bomber Jacket", "Small", null, 8, null),
+            ("Quilted Bomber Jacket", "Small", "Olive", 9, "/assets/colors/bomber-olive.jpg"),
+            ("Quilted Bomber Jacket", "Medium", "Olive", 12, "/assets/colors/bomber-olive.jpg"),
+            ("Quilted Bomber Jacket", "Large", "Olive", 7, "/assets/colors/bomber-olive.jpg")
         };
 
         foreach (var byStyle in defs.GroupBy(d => d.name))
@@ -327,14 +365,15 @@ public static class DbSeed
             var baseRow = await db.Products.OrderBy(p => p.ProductId).FirstOrDefaultAsync(p => p.Name == byStyle.Key);
             if (baseRow is null) continue; // style removed from the catalog — nothing to extend
 
-            // "Medium / Brown" → colour "Brown" is shared by every sibling.
+            // "Medium / Brown" → the original colour every base-size row shares.
             var sep = baseRow.Variant.IndexOf(" / ");
-            var color = sep >= 0 ? baseRow.Variant[(sep + 3)..] : "";
+            var baseColor = sep >= 0 ? baseRow.Variant[(sep + 3)..] : "";
 
             var existing = await db.Products.Where(p => p.Name == byStyle.Key).Select(p => p.Variant).ToListAsync();
 
             foreach (var d in byStyle)
             {
+                var color = d.color ?? baseColor;
                 var variant = color == "" ? d.size : $"{d.size} / {color}";
                 if (existing.Contains(variant)) continue;
 
@@ -347,7 +386,7 @@ public static class DbSeed
                     Stock = d.stock,
                     Category = baseRow.Category,
                     StorefrontCategory = baseRow.StorefrontCategory,
-                    ImageUrl = baseRow.ImageUrl,
+                    ImageUrl = d.image ?? baseRow.ImageUrl,
                     IsNew = baseRow.IsNew,
                     IsActive = true
                 };
@@ -359,6 +398,16 @@ public static class DbSeed
                     Warehouse = "Main Warehouse — Quezon City"
                 });
             }
+        }
+
+        // Rows created before a colour's photo changed (e.g. the earlier
+        // different-model Unsplash images) are realigned with the def.
+        foreach (var d in defs.Where(d => d.image != null))
+        {
+            var variant = $"{d.size} / {d.color}";
+            var row = await db.Products.FirstOrDefaultAsync(p => p.Name == d.name && p.Variant == variant);
+            if (row is not null && row.ImageUrl != d.image)
+                row.ImageUrl = d.image!;
         }
 
         if (db.ChangeTracker.HasChanges())

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApi } from '../api/client';
 import ProductModal from './ProductModal.jsx';
-import { peso, fmtDate, parseVariant, sizeSort } from '../utils';
+import { peso, fmtDate, parseVariant, sizeSort, swatchStyle } from '../utils';
 
 // Categories mirror the header nav (WOMEN / MEN / OUTERWEAR / SALE).
 // A product counts as SALE whenever it has an originalPrice.
@@ -27,7 +27,8 @@ const sectionScrollTargets = {
 const NewArrivals = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
-  const [modalStyle, setModalStyle] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [modal, setModal] = useState(null);
   const sectionRef = useRef(null);
 
   const products = useApi('/api/products');
@@ -62,14 +63,28 @@ const NewArrivals = () => {
       sectionRef.current?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
     };
 
-    const shouldHandle = (hash) => Boolean(hashCategories[hash] || sectionScrollTargets[hash]);
+    // Header search uses #search/<term> with the original casing intact —
+    // the lowercase variant is only for the category anchors.
+    const isSearchHash = (hash) => hash.toLowerCase().startsWith('#search/');
+    const shouldHandle = (hash) => Boolean(
+      hashCategories[hash] || sectionScrollTargets[hash] || isSearchHash(hash)
+    );
 
     const applyHash = () => {
-      const hash = window.location.hash.toLowerCase();
-      const category = hashCategories[hash];
-      if (category) {
-        setActiveCategory(category);
+      const raw = window.location.hash;
+      const hash = raw.toLowerCase();
+      if (isSearchHash(raw)) {
+        const term = decodeURIComponent(raw.slice('#search/'.length)).trim();
+        setSearchTerm(term);
+        setActiveCategory('All');
         setShowAll(true);
+      } else {
+        const category = hashCategories[hash];
+        if (category) {
+          setSearchTerm('');
+          setActiveCategory(category);
+          setShowAll(true);
+        }
       }
       if (!shouldHandle(hash)) return;
       setTimeout(() => scrollForHash(hash), 80);
@@ -107,34 +122,37 @@ const NewArrivals = () => {
         ?.querySelectorAll('.product-card.reveal:not(.is-visible), .filter-tag.reveal:not(.is-visible)')
         .forEach((el) => el.classList.add('is-visible'));
     });
-  }, [activeCategory, showAll, products.data, offersQ.data]);
+  }, [activeCategory, showAll, searchTerm, products.data, offersQ.data]);
 
   const allProducts = useMemo(() => products.data || [], [products.data]);
 
   // One product row = one size/colour combo; the storefront sells styles, so
-  // rows sharing a name collapse into a single card whose size picker (the
-  // product modal) lists every variant.
+  // rows sharing a name collapse into a single card whose picker (the product
+  // modal) lists every colour — each with its own photo — and every size.
   const styles = useMemo(() => {
     const map = new Map();
     for (const p of allProducts) {
+      const { color } = parseVariant(p.variant);
       let s = map.get(p.name);
       if (!s) {
-        const { color } = parseVariant(p.variant);
         map.set(p.name, {
           name: p.name,
-          imageUrl: p.imageUrl,
           category: p.category,
           storefrontCategory: p.storefrontCategory,
-          color,
           isNew: false,
           originalPrice: null,
           minPrice: p.price,
           totalStock: 0,
-          variants: []
+          colors: []
         });
         s = map.get(p.name);
       }
-      s.variants.push(p);
+      let c = s.colors.find((x) => x.color === color);
+      if (!c) {
+        c = { color, image: p.imageUrl, variants: [] };
+        s.colors.push(c);
+      }
+      c.variants.push(p);
       s.isNew = s.isNew || p.isNew;
       s.originalPrice = s.originalPrice || p.originalPrice;
       s.minPrice = Math.min(s.minPrice, p.price);
@@ -142,11 +160,15 @@ const NewArrivals = () => {
     }
     return [...map.values()].map((s) => ({
       ...s,
-      variants: [...s.variants].sort((a, b) => sizeSort(parseVariant(a.variant).size, parseVariant(b.variant).size))
+      colors: s.colors.map((c) => ({
+        ...c,
+        variants: [...c.variants].sort((a, b) => sizeSort(parseVariant(a.variant).size, parseVariant(b.variant).size))
+      }))
     }));
   }, [allProducts]);
 
   const filteredStyles = styles.filter((style) => {
+    if (searchTerm && !style.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (activeCategory === 'All') return true;
     if (activeCategory === 'Sale') return Boolean(style.originalPrice);
     return style.storefrontCategory === activeCategory;
@@ -155,6 +177,7 @@ const NewArrivals = () => {
   const visibleStyles = showAll ? filteredStyles : styles.slice(0, newArrivalsCount);
 
   const selectCategory = (category) => {
+    setSearchTerm('');
     setActiveCategory(category);
     setShowAll(true);
   };
@@ -163,12 +186,15 @@ const NewArrivals = () => {
     e.preventDefault();
     setShowAll(false);
     setActiveCategory('All');
+    setSearchTerm('');
     window.location.hash = '';
   };
 
-  const sectionTitle = showAll
-    ? (activeCategory === 'All' ? 'All Products' : activeCategory)
-    : 'New Arrivals';
+  const sectionTitle = searchTerm
+    ? `RESULTS FOR "${searchTerm.toUpperCase()}"`
+    : showAll
+      ? (activeCategory === 'All' ? 'All Products' : activeCategory)
+      : 'New Arrivals';
 
   return (
     <section className="new-arrivals" ref={sectionRef}>
@@ -218,6 +244,11 @@ const NewArrivals = () => {
       {products.error && (
         <p className="storefront-loading">The catalog is unavailable right now — please refresh in a moment.</p>
       )}
+      {showAll && searchTerm && filteredStyles.length === 0 && !products.loading && (
+        <p className="storefront-loading">
+          NO PIECES MATCHED "{searchTerm.toUpperCase()}" — TRY ANOTHER SEARCH OR BROWSE THE CATEGORIES.
+        </p>
+      )}
 
       <div className="product-grid">
         {visibleStyles.map((style, index) => (
@@ -226,9 +257,9 @@ const NewArrivals = () => {
               className="product-image-container"
               role="button"
               tabIndex={0}
-              aria-label={`View sizes for ${style.name}`}
-              onClick={() => setModalStyle(style)}
-              onKeyDown={(e) => e.key === 'Enter' && setModalStyle(style)}
+              aria-label={`View colours and sizes for ${style.name}`}
+              onClick={() => setModal({ style })}
+              onKeyDown={(e) => e.key === 'Enter' && setModal({ style })}
             >
               {(style.isNew || style.originalPrice) && (
                 <div className="badge-row">
@@ -237,20 +268,35 @@ const NewArrivals = () => {
                   {style.totalStock <= 5 && <span className="badge low">LOW STOCK</span>}
                 </div>
               )}
-              <img src={style.imageUrl} alt={style.name} loading="lazy" />
+              <img src={style.colors[0].image} alt={style.name} loading="lazy" />
             </div>
             <div className="product-info">
               <h3 className="product-name">{style.name}</h3>
               <p className="product-category">
-                {style.category} • {style.color || `${style.variants.length} sizes`}
+                {style.category} • {style.colors.length > 1 ? `${style.colors.length} colours` : style.colors[0].color}
               </p>
+              {style.colors.length > 1 && (
+                <div className="color-dots">
+                  {style.colors.map((c) => (
+                    <button
+                      key={c.color}
+                      type="button"
+                      className="color-dot"
+                      style={swatchStyle(c.color)}
+                      title={c.color}
+                      aria-label={`Open ${style.name} in ${c.color}`}
+                      onClick={(e) => { e.stopPropagation(); setModal({ style, color: c.color }); }}
+                    />
+                  ))}
+                </div>
+              )}
               <div className="product-price-wrapper">
                 <span className="product-price">{peso(style.minPrice)}</span>
                 {style.originalPrice && <span className="product-original-price">{peso(style.originalPrice)}</span>}
               </div>
               <button
                 className="add-cart-btn"
-                onClick={() => setModalStyle(style)}
+                onClick={() => setModal({ style })}
                 disabled={style.totalStock < 1}
               >
                 {style.totalStock < 1 ? 'OUT OF STOCK' : 'ADD TO CART'}
@@ -260,7 +306,13 @@ const NewArrivals = () => {
         ))}
       </div>
 
-      {modalStyle && <ProductModal style={modalStyle} onClose={() => setModalStyle(null)} />}
+      {modal && (
+        <ProductModal
+          style={modal.style}
+          initialColor={modal.color}
+          onClose={() => setModal(null)}
+        />
+      )}
     </section>
   );
 };

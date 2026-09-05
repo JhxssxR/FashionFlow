@@ -665,7 +665,35 @@
 }
 
 .footer-payments {
-  color: #737373;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* payment logos sit in white chips so the dark wordmarks stay readable on
+   the dark footer */
+.pay-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  min-width: 44px;
+  padding: 0 8px;
+  background: #fff;
+  border-radius: 5px;
+}
+
+.pay-chip img {
+  max-height: 16px;
+  width: auto;
+}
+
+.pay-chip-text {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #333;
 }
 
 .footer-legal {
@@ -782,6 +810,45 @@
 
 .login-link-btn:hover {
   opacity: 0.7;
+}
+
+/* Clickable header logo */
+.logo-link {
+  display: block;
+  line-height: 0;
+}
+
+/* Header search: inline box that appears next to the magnifier */
+.header-search input {
+  width: 200px;
+  max-width: 38vw;
+  border: none;
+  border-bottom: 1px solid #111;
+  background: transparent;
+  padding: 6px 2px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  outline: none;
+}
+
+.header-search input::placeholder {
+  color: #aaa;
+}
+
+/* Signed-in header: greeting opens the dashboard, sign-out is muted */
+.login-link-btn.account-btn {
+  white-space: nowrap;
+}
+
+.login-link-btn.signout-btn {
+  color: #999;
+  white-space: nowrap;
+}
+
+.login-link-btn.signout-btn:hover {
+  color: #c0564f;
+  opacity: 1;
 }
 
 /* Screen Reader Only Utility */
@@ -961,11 +1028,11 @@
 .login-center-logo {
   display: flex;
   justify-content: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.9rem;
 }
 
 .login-brand-img {
-  height: 76px;
+  height: 62px;
   width: auto;
   object-fit: contain;
 }
@@ -973,7 +1040,7 @@
 /* Login Form Header */
 .login-form-header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.1rem;
 }
 
 .login-form-tag {
@@ -1008,7 +1075,7 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.95rem;
 }
 
 .form-group {
@@ -1045,8 +1112,8 @@
   color: var(--accent-color);
 }
 
-.form-group input {
-  height: 48px;
+.login-form .form-group input {
+  height: 44px;
   padding: 0.8rem 1.2rem;
   border: 1px solid #e2e2e2;
   border-radius: 0;
@@ -1066,7 +1133,7 @@
 
 /* Login Submit Button */
 .login-submit-btn {
-  height: 48px;
+  height: 46px;
   background-color: #111;
   color: #fff;
   border: none;
@@ -1141,7 +1208,7 @@
   font-size: 0.68rem;
   color: #999;
   letter-spacing: 0.8px;
-  padding: 1.1rem 3.5rem 1.4rem;
+  padding: 0.8rem 3.5rem 1rem;
   margin-top: auto;
 }
 
@@ -1149,6 +1216,8 @@
 @media (max-width: 768px) {
   .login-container {
     flex-direction: column;
+    height: auto;
+    overflow: visible;
   }
   .login-left {
     display: none;

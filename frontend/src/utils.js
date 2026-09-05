@@ -72,6 +72,22 @@ export const parseVariant = (variant) => {
   return { size: String(variant).slice(0, sep), color: String(variant).slice(sep + 3) };
 };
 
+// Display-only swatch colours for the storefront colour picker. Names must
+// match the colour half of Product.Variant ("Small / Blue" → "Blue").
+export const COLOR_HEX = {
+  Brown: '#8b5e3c', Blue: '#3b5b8c', Black: '#141414', Beige: '#d4c5a9',
+  Emerald: '#0e6b52', Red: '#c0392b', Ivory: '#f3ede1', Blush: '#eec3c3',
+  Lavender: '#b48ad4', Indigo: '#46527a', White: '#ffffff', Grey: '#9aa0a6',
+  Olive: '#6b7042'
+};
+
+// Known colours get their solid swatch; anything else (Multi, Floral…) gets a
+// multitone disc.
+export const swatchStyle = (color) =>
+  COLOR_HEX[color]
+    ? { background: COLOR_HEX[color] }
+    : { background: 'conic-gradient(#e8b4b8, #b6d0b6, #b8c4e0, #e8d4a8, #e8b4b8)' };
+
 // Clothing sizes in retail order (XS…XL), then numeric sizes (30, 32, 34)
 // ascending, then anything else alphabetically.
 const SIZE_ORDER = ['XS', 'X-Small', 'S', 'Small', 'M', 'Medium', 'L', 'Large', 'XL', 'X-Large'];
