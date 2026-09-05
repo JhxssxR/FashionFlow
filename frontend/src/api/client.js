@@ -30,14 +30,21 @@ export function clearAuth() {
 
 export async function api(path, { method = 'GET', body } = {}) {
   const auth = getAuth();
-  const res = await fetch(path, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {})
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {})
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined
+    });
+  } catch {
+    // fetch only throws at the network level (backend down, connection lost);
+    // HTTP error statuses still return a response and are handled below.
+    throw new ApiError("Can't reach the FashionFlow server — make sure it's running, then try again.", 0);
+  }
 
   if (res.status === 401 && auth) {
     // Expired/invalid token: drop it and bounce to the login page.

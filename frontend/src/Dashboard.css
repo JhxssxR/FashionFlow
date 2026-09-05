@@ -630,6 +630,16 @@
   margin-bottom: 14px;
 }
 
+.form-group input.input-error,
+.form-group input.input-error:focus {
+  border-color: #b04a43;
+}
+
+.field-error {
+  font-size: 0.72rem;
+  color: #b04a43;
+}
+
 .login-divider {
   display: flex;
   align-items: center;

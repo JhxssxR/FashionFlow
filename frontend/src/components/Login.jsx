@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { api, saveAuth } from '../api/client';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // SIGN IN mode for existing accounts (staff + customers, credentials from the
 // project docs); CREATE ACCOUNT mode self-registers customer accounts only —
 // staff accounts are invited by an administrator.
@@ -10,10 +12,39 @@ const Login = ({ onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
+
+  const clearFieldError = (field) =>
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: '' } : prev));
+
+  const validate = () => {
+    const errs = {};
+    if (mode === 'register' && name.trim().length < 2) {
+      errs.name = 'Please enter your full name.';
+    }
+    if (!email.trim()) {
+      errs.email = 'Please enter your email address.';
+    } else if (!EMAIL_RE.test(email.trim())) {
+      errs.email = "That doesn't look like a valid email address.";
+    }
+    if (!password) {
+      errs.password = mode === 'signin'
+        ? 'Please enter your password.'
+        : 'Please choose a password of at least 6 characters.';
+    } else if (mode === 'register' && password.length < 6) {
+      errs.password = 'Password must be at least 6 characters.';
+    }
+    return errs;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const errs = validate();
+    if (Object.values(errs).some(Boolean)) {
+      setFieldErrors(errs);
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -23,7 +54,11 @@ const Login = ({ onBack }) => {
       saveAuth({ token: res.token, user: res.user });
       window.location.hash = `dashboard/${res.user.dashboardKey}`;
     } catch (err) {
-      setError(err.message || 'Sign-in failed. Please try again.');
+      setError(
+        err.status === 429
+          ? 'Too many attempts — please wait a minute and try again.'
+          : err.message || 'Something went wrong. Please try again.'
+      );
       setBusy(false);
     }
   };
@@ -83,15 +118,15 @@ const Login = ({ onBack }) => {
           </div>
 
           <div className="auth-tabs">
-            <button type="button" className={`auth-tab${mode === 'signin' ? ' active' : ''}`} onClick={() => { setMode('signin'); setError(''); }}>
+            <button type="button" className={`auth-tab${mode === 'signin' ? ' active' : ''}`} onClick={() => { setMode('signin'); setError(''); setFieldErrors({}); }}>
               SIGN IN
             </button>
-            <button type="button" className={`auth-tab${mode === 'register' ? ' active' : ''}`} onClick={() => { setMode('register'); setError(''); }}>
+            <button type="button" className={`auth-tab${mode === 'register' ? ' active' : ''}`} onClick={() => { setMode('register'); setError(''); setFieldErrors({}); }}>
               CREATE ACCOUNT
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="login-form">
+          <form onSubmit={handleSubmit} className="login-form" noValidate>
             {mode === 'register' && (
               <div className="form-group">
                 <label htmlFor="reg-name">FULL NAME</label>
@@ -100,9 +135,11 @@ const Login = ({ onBack }) => {
                   id="reg-name"
                   placeholder="Juan Dela Cruz"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
+                  onChange={(e) => { setName(e.target.value); clearFieldError('name'); setError(''); }}
+                  aria-invalid={fieldErrors.name ? true : undefined}
+                  className={fieldErrors.name ? 'input-error' : undefined}
                 />
+                {fieldErrors.name && <p className="field-error" role="alert">{fieldErrors.name}</p>}
               </div>
             )}
 
@@ -113,9 +150,11 @@ const Login = ({ onBack }) => {
                 id="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                onChange={(e) => { setEmail(e.target.value); clearFieldError('email'); setError(''); }}
+                aria-invalid={fieldErrors.email ? true : undefined}
+                className={fieldErrors.email ? 'input-error' : undefined}
               />
+              {fieldErrors.email && <p className="field-error" role="alert">{fieldErrors.email}</p>}
             </div>
 
             <div className="form-group">
@@ -128,13 +167,14 @@ const Login = ({ onBack }) => {
                 id="password"
                 placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
+                onChange={(e) => { setPassword(e.target.value); clearFieldError('password'); setError(''); }}
+                aria-invalid={fieldErrors.password ? true : undefined}
+                className={fieldErrors.password ? 'input-error' : undefined}
               />
+              {fieldErrors.password && <p className="field-error" role="alert">{fieldErrors.password}</p>}
             </div>
 
-            {error && <p className="login-error">{error}</p>}
+            {error && <p className="login-error" role="alert">{error}</p>}
 
             <button type="submit" className="login-submit-btn" disabled={busy}>
               {busy ? 'PLEASE WAIT…' : mode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →'}
