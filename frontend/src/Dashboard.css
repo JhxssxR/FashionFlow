@@ -474,6 +474,49 @@
   color: #0d0d0d;
 }
 
+/* Table pagination footer (DashboardShared Pager) */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px dashed #e2e2de;
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.pager-btn {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  background: none;
+  border: 1px solid #dcdcd8;
+  border-radius: 999px;
+  color: #444;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.pager-btn:hover:not(:disabled) {
+  border-color: #0d0d0d;
+  color: #0d0d0d;
+}
+
+.pager-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pager-status {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 1.2px;
+  color: #8a8a8a;
+  text-align: center;
+}
+
 .mini-btn.wide {
   width: 100%;
   margin-top: 14px;

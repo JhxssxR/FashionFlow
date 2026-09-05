@@ -77,3 +77,36 @@ export function ErrorNote({ message }) {
   if (!message) return null;
   return <div className="api-error">{message}</div>;
 }
+
+// Client-side pagination footer: ← PREV / PAGE x OF y / NEXT →.
+// Renders nothing for a single page. `total`/`pageSize` add an
+// entries count when provided.
+export function Pager({ page, pageCount, onPage, total, pageSize }) {
+  if (pageCount <= 1) return null;
+  return (
+    <div className="pager">
+      <button
+        type="button"
+        className="pager-btn"
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+      >
+        ← PREV
+      </button>
+      <span className="pager-status">
+        PAGE {page} OF {pageCount}
+        {total !== undefined && pageSize !== undefined
+          ? ` · ${total} ENTRIES · ${pageSize} PER PAGE`
+          : ''}
+      </span>
+      <button
+        type="button"
+        className="pager-btn"
+        disabled={page >= pageCount}
+        onClick={() => onPage(page + 1)}
+      >
+        NEXT →
+      </button>
+    </div>
+  );
+}

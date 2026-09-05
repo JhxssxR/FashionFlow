@@ -4,12 +4,14 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote, Pager } from './DashboardShared';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.purple, CHART_COLORS.green, '#b9b9b9'];
+
+const LOGS_PAGE_SIZE = 10;
 
 const ROLE_OPTIONS = [
   ['Admin', 'System Administrator'],
@@ -122,8 +124,10 @@ const AdminDashboard = ({ user }) => {
   const sales = useApi('/api/reports/sales-summary?days=30');
   const byRole = useApi('/api/users/by-role');
   const [usersTick, setUsersTick] = useState(0);
+  const [logsPage, setLogsPage] = useState(1);
   const usersQ = useApi('/api/users', [usersTick]);
-  const logs = useApi('/api/logs?limit=30', [usersTick]);
+  // 200 = the API's cap; the logs page pages through them 10 at a time.
+  const logs = useApi('/api/logs?limit=200', [usersTick]);
   const lowStock = useApi('/api/inventory/low-stock', [usersTick]);
   const reports = useApi('/api/reports', [usersTick]);
 
@@ -220,22 +224,34 @@ const AdminDashboard = ({ user }) => {
         }
 
         if (page === 'logs') {
+          const logRows = logs.data || [];
+          const logPageCount = Math.max(1, Math.ceil(logRows.length / LOGS_PAGE_SIZE));
+          const logPage = Math.min(logsPage, logPageCount);
           return (
             <Panel title="System activity logs" subtitle="Every module action, newest first">
               <ErrorNote message={logs.error} />
               {logs.loading ? <Loading /> : (
-                <DataTable
-                  keyField="id"
-                  emptyTitle="NO ACTIVITY LOGGED YET"
-                  emptyNote="Sign-ins, sales, stock movements and configuration changes are recorded automatically."
-                  columns={[
-                    { key: 'time', label: 'Time', width: 180, render: (r) => fmtDateTime(r.time) },
-                    { key: 'user', label: 'User' },
-                    { key: 'action', label: 'Action' },
-                    { key: 'type', label: 'Type', render: (r) => <StatusBadge status={r.type === 'Auth' ? 'Active' : r.type} /> }
-                  ]}
-                  rows={logs.data || []}
-                />
+                <>
+                  <DataTable
+                    keyField="id"
+                    emptyTitle="NO ACTIVITY LOGGED YET"
+                    emptyNote="Sign-ins, sales, stock movements and configuration changes are recorded automatically."
+                    columns={[
+                      { key: 'time', label: 'Time', width: 180, render: (r) => fmtDateTime(r.time) },
+                      { key: 'user', label: 'User' },
+                      { key: 'action', label: 'Action' },
+                      { key: 'type', label: 'Type', render: (r) => <StatusBadge status={r.type === 'Auth' ? 'Active' : r.type} /> }
+                    ]}
+                    rows={logRows.slice((logPage - 1) * LOGS_PAGE_SIZE, logPage * LOGS_PAGE_SIZE)}
+                  />
+                  <Pager
+                    page={logPage}
+                    pageCount={logPageCount}
+                    total={logRows.length}
+                    pageSize={LOGS_PAGE_SIZE}
+                    onPage={setLogsPage}
+                  />
+                </>
               )}
             </Panel>
           );
