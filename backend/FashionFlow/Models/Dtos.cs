@@ -86,7 +86,10 @@ public record CheckoutItemRequest(
 
 public record CheckoutRequest(
     [Required] string ShippingAddress,
-    [Required, MinLength(1)] List<CheckoutItemRequest> Items);
+    [Required, MinLength(1)] List<CheckoutItemRequest> Items,
+    // Optional: "gcash" | "maya" | "card" | "cod". When omitted the PayMongo
+    // hosted page offers all of its methods.
+    string? PaymentMethod);
 
 public record MockConfirmRequest([Required] string OrderNumber);
 

@@ -4,18 +4,21 @@ import { api, getAuth, saveAuth } from '../api/client';
 import { peso, peso2 } from '../utils';
 
 // Storefront checkout. route is the current hash:
-//   #checkout                     → order form (requires a signed-in Customer)
-//   #checkout/mock-pay/FF-10242   → Development stand-in for PayMongo's page
-//   #checkout/success/FF-10242    → payment confirmed
-//   #checkout/cancel/FF-10242     → payment abandoned (order stays Pending)
+//   #checkout                       → order form (requires a signed-in Customer)
+//   #checkout/mock-pay/FF-10242     → Development stand-in for PayMongo's page
+//   #checkout/mock-pay/FF-10242/gcash → same, showing the chosen method
+//   #checkout/success/FF-10242      → payment confirmed (thank-you page)
+//   #checkout/success/FF-10242/cod  → thank-you page, cash on delivery
+//   #checkout/cancel/FF-10242       → payment abandoned (order stays Pending)
 const CheckoutPage = ({ route }) => {
   const segments = route.replace(/^#\/?checkout\/?/, '').split('/').filter(Boolean);
   const view = segments[0] || 'form';
   const orderNumber = segments[1] || '';
+  const method = segments[2] || '';
 
-  if (view === 'success') return <SuccessView orderNumber={orderNumber} />;
+  if (view === 'success') return <SuccessView orderNumber={orderNumber} method={method} />;
   if (view === 'cancel') return <CancelView orderNumber={orderNumber} />;
-  if (view === 'mock-pay') return <MockPayView orderNumber={orderNumber} />;
+  if (view === 'mock-pay') return <MockPayView route={route} />;
   return <FormView />;
 };
 
@@ -104,10 +107,24 @@ const AuthPanel = ({ onAuthed }) => {
   );
 };
 
+// Payment choices offered at checkout. gcash/maya/card go through the
+// PayMongo hosted page (filtered to the chosen wallet); cod skips the
+// gateway and is paid to the courier.
+const paymentOptions = [
+  { key: 'gcash', label: 'GCASH', desc: 'Pay with GCash via PayMongo' },
+  { key: 'maya', label: 'MAYA', desc: 'Pay with Maya via PayMongo' },
+  { key: 'card', label: 'CARD', desc: 'Credit or debit card via PayMongo' },
+  { key: 'cod', label: 'CASH ON DELIVERY', desc: 'Pay cash when your order arrives' }
+];
+
+const methodLabel = (key) => paymentOptions.find((o) => o.key === key)?.label
+  || ({ online: 'ONLINE' }[key] || 'ONLINE');
+
 const OrderForm = () => {
   const cart = useCart();
   const auth = getAuth();
   const [address, setAddress] = useState('');
+  const [method, setMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -120,12 +137,19 @@ const OrderForm = () => {
         method: 'POST',
         body: {
           shippingAddress: address,
+          paymentMethod: method,
           items: cart.items.map((l) => ({ productId: l.id, quantity: l.quantity }))
         }
       });
-      if (res.mock) {
+      if (res.cod) {
+        // Cash on delivery is fulfilled on the spot — straight to the
+        // thank-you page.
+        window.location.hash = `checkout/success/${res.orderNumber}/cod`;
+      } else if (res.mock) {
         // No PayMongo keys configured yet — Development stand-in page.
-        window.location.hash = `checkout/mock-pay/${res.orderNumber}`;
+        // The method segment personalises the stand-in page and the
+        // thank-you copy afterwards.
+        window.location.hash = `checkout/mock-pay/${res.orderNumber}${method ? `/${method}` : ''}`;
       } else {
         // Real PayMongo hosted checkout.
         window.location.href = res.checkoutUrl;
@@ -154,8 +178,7 @@ const OrderForm = () => {
         <span className="login-form-tag">CHECKOUT</span>
         <h2 className="checkout-title">Almost yours.</h2>
         <p className="checkout-sub">
-          Ordering as <strong>{auth?.user?.name}</strong> — pay with GCash, Maya or card via
-          PayMongo and earn 1 point per ₱100.
+          Ordering as <strong>{auth?.user?.name}</strong> — earn 1 point per ₱100.
         </p>
 
         <div className="checkout-summary">
@@ -177,9 +200,33 @@ const OrderForm = () => {
             <textarea id="co-address" rows={3} value={address} placeholder="House no., street, barangay, city"
               onChange={(e) => setAddress(e.target.value)} required />
           </div>
+
+          <div className="form-group">
+            <label>PAYMENT METHOD</label>
+            <div className="pay-options" role="radiogroup" aria-label="Payment method">
+              {paymentOptions.map((opt) => (
+                <button
+                  type="button"
+                  key={opt.key}
+                  role="radio"
+                  aria-checked={method === opt.key}
+                  className={`pay-option${method === opt.key ? ' selected' : ''}`}
+                  onClick={() => setMethod(opt.key)}
+                >
+                  <span className="pay-option-label">{opt.label}</span>
+                  <span className="pay-option-desc">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {error && <p className="login-error">{error}</p>}
-          <button type="submit" className="checkout-btn" disabled={busy}>
-            {busy ? 'PLACING ORDER…' : `PLACE ORDER — ${peso2(cart.subtotal)}`}
+          <button type="submit" className="checkout-btn" disabled={busy || !method}>
+            {busy
+              ? 'PLACING ORDER…'
+              : !method
+                ? 'SELECT A PAYMENT METHOD'
+                : `PLACE ORDER — ${peso2(cart.subtotal)}`}
           </button>
         </form>
       </div>
@@ -190,7 +237,10 @@ const OrderForm = () => {
 // Development stand-in for PayMongo's hosted payment page — only returned by
 // the API while PayMongo:SecretKey is unset. Confirms through the same
 // fulfilment pipeline the real webhook uses.
-const MockPayView = ({ orderNumber }) => {
+const MockPayView = ({ route }) => {
+  const segments = route.replace(/^#\/?checkout\/mock-pay\/?/, '').split('/').filter(Boolean);
+  const orderNumber = segments[0] || '';
+  const method = segments[1] || '';
   const cart = useCart();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -201,7 +251,7 @@ const MockPayView = ({ orderNumber }) => {
     try {
       await api('/api/payments/mock-confirm', { method: 'POST', body: { orderNumber } });
       cart.clear();
-      window.location.hash = `checkout/success/${orderNumber}`;
+      window.location.hash = `checkout/success/${orderNumber}${method ? `/${method}` : ''}`;
     } catch (ex) {
       setError(ex.message);
       setBusy(false);
@@ -213,6 +263,7 @@ const MockPayView = ({ orderNumber }) => {
       <div className="checkout-card mock-pay">
         <span className="login-form-tag">DEVELOPMENT PAYMENT STAND-IN</span>
         <h2 className="checkout-title">Order {orderNumber}</h2>
+        {method && <p className="checkout-method-line">SELECTED METHOD — {methodLabel(method)}</p>}
         <p className="checkout-sub">
           PayMongo keys are not configured yet, so this page plays the hosted
           payment step. Confirming runs the exact fulfilment pipeline the real
@@ -230,7 +281,7 @@ const MockPayView = ({ orderNumber }) => {
   );
 };
 
-const SuccessView = ({ orderNumber }) => {
+const SuccessView = ({ orderNumber, method }) => {
   const cart = useCart();
   const cleared = useRef(false);
   useEffect(() => {
@@ -242,16 +293,26 @@ const SuccessView = ({ orderNumber }) => {
   }, []);
   void cart;
 
+  const isCod = method === 'cod';
+  const firstName = getAuth()?.user?.name?.split(' ')[0];
+
   return (
     <section className="checkout-page">
       <div className="checkout-card success">
         <span className="checkout-check">✓</span>
-        <h2 className="checkout-title">Payment received.</h2>
+        <h2 className="checkout-title">{firstName ? `Thank you, ${firstName}!` : 'Thank you!'}</h2>
         <p className="checkout-sub">
-          Order <strong>{orderNumber}</strong> is confirmed — stock is reserved and your loyalty
-          points have been added. Track it in your dashboard's purchase history.
+          Order <strong>{orderNumber}</strong> is confirmed
+          {method && <> — paid by <strong>{methodLabel(method)}</strong></>}.
         </p>
-        <button className="checkout-btn" onClick={() => { window.location.hash = ''; }}>CONTINUE SHOPPING</button>
+        <p className="checkout-sub">
+          {isCod
+            ? 'Please prepare your payment — the courier will collect the cash when your order arrives.'
+            : 'Payment received — stock is reserved and your loyalty points have been added.'}{' '}
+          Track it in your dashboard's purchase history.
+        </p>
+        <button className="checkout-btn" onClick={() => { window.location.hash = 'dashboard/customer'; }}>VIEW MY ORDERS</button>
+        <button className="checkout-btn secondary" onClick={() => { window.location.hash = ''; }}>CONTINUE SHOPPING</button>
       </div>
     </section>
   );

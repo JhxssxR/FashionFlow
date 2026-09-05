@@ -16,13 +16,16 @@ public class PayMongoService(IHttpClientFactory httpFactory, IConfiguration conf
 
     public bool IsConfigured => !string.IsNullOrEmpty(SecretKey);
 
-    // Creates a hosted checkout session for the order.
+    // Creates a hosted checkout session for the order. paymentMethodTypes
+    // filters which wallets/cards the hosted page offers (from the customer's
+    // checkout choice); empty means "let PayMongo show its defaults".
     // Returns (checkoutSessionId, checkoutUrl).
     public async Task<(string SessionId, string CheckoutUrl)> CreateCheckoutSessionAsync(
         Order order,
         IReadOnlyList<(string Name, int Quantity, decimal UnitPrice)> lineItems,
         string successUrl,
-        string cancelUrl)
+        string cancelUrl,
+        IReadOnlyList<string>? paymentMethodTypes = null)
     {
         var client = httpFactory.CreateClient("paymongo");
         client.DefaultRequestHeaders.Authorization =
@@ -44,7 +47,9 @@ public class PayMongoService(IHttpClientFactory httpFactory, IConfiguration conf
                         name = li.Name,
                         quantity = li.Quantity
                     }),
-                    payment_method_types = new[] { "gcash", "maya", "card" },
+                    payment_method_types = paymentMethodTypes is { Count: > 0 }
+                        ? paymentMethodTypes
+                        : new[] { "gcash", "maya", "card" },
                     reference_number = order.OrderNumber,
                     description = $"FashionFlow order {order.OrderNumber}",
                     success_url = successUrl,

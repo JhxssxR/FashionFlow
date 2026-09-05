@@ -23,6 +23,9 @@ public class Order
 
     // Pending → Paid | Cancelled | Failed
     public string Status { get; set; } = "Pending";
+    // How the customer chose to pay: GCash, Maya, Card (PayMongo hosted page)
+    // or Cash on Delivery. Seeded/legacy orders default to Online.
+    public string PaymentMethod { get; set; } = "Online";
     // PayMongo checkout_session id (cs_xxx) tying the webhook to this order.
     public string? CheckoutSessionId { get; set; }
 

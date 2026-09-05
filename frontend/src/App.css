@@ -800,7 +800,10 @@
 /* Login Page Container */
 .login-container {
   display: flex;
-  min-height: 100vh;
+  /* lock the login view to the viewport — no page scrolling in either mode;
+     the form column scrolls internally on very short screens instead */
+  height: 100vh;
+  overflow: hidden;
   width: 100%;
   font-family: var(--font-sans);
   background-color: #ffffff;
@@ -813,6 +816,7 @@
 .login-left {
   flex: 1;
   position: relative;
+  height: 100vh;
   min-height: 100vh;
   overflow: hidden;
   background-color: #0d0d0d;
@@ -836,9 +840,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Tulle-dress shot (1200×1804) is much taller than the panel — keep the
-     model's face in frame and let the lower dress fall under the text overlay */
-  object-position: 50% 28%;
+  /* login-model.jpg (763×1024) — keep the model's face in frame at tall
+     viewports; the bottom falls under the text overlay anyway */
+  object-position: 50% 10%;
 }
 
 .login-left-overlay {
@@ -893,14 +897,16 @@
   margin: 0;
 }
 
-/* Right panel with form - scrolls naturally with the left image */
+/* Right panel with form — fixed to the viewport; scrolls internally only if
+   the form cannot fit the screen (page itself never scrolls) */
 .login-right {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   background-color: #ffffff;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 /* Login Nav */
@@ -942,15 +948,13 @@
   color: #000;
 }
 
-/* Login Form Wrapper */
 .login-form-wrapper {
   max-width: 380px;
   width: 100%;
-  margin: 2.5rem auto;
-  padding: 0 1.5rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 
 /* Centered Brand Logo */
@@ -995,6 +999,9 @@
   color: #888;
   font-size: 0.82rem;
   line-height: 1.4;
+  /* reserve two lines so the tabs/fields below stay at the same height in
+     SIGN IN and CREATE ACCOUNT modes */
+  min-height: calc(2 * 1.4em);
 }
 
 /* Login Form inputs */
@@ -1135,6 +1142,7 @@
   color: #999;
   letter-spacing: 0.8px;
   padding: 1.1rem 3.5rem 1.4rem;
+  margin-top: auto;
 }
 
 /* Responsive constraints for Login Screen */
@@ -1468,6 +1476,73 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  animation: modal-img-fade 0.3s ease;
+}
+
+@keyframes modal-img-fade {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+/* colour swatches */
+.swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px 0 8px;
+  border: 1px solid #dcdcd8;
+  background: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.swatch-chip:hover {
+  border-color: #111;
+}
+
+.swatch-chip.selected {
+  border-color: #111;
+  box-shadow: inset 0 0 0 1px #111;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  flex: none;
+}
+
+/* colour dots on the product card */
+.color-dots {
+  display: flex;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.color-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.color-dot:hover {
+  transform: scale(1.2);
 }
 
 .product-modal-body {
@@ -1654,6 +1729,57 @@
 
 .checkout-card.success {
   text-align: center;
+}
+
+/* Payment method picker */
+.pay-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pay-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e0e0dd;
+  border-radius: 8px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pay-option:hover {
+  border-color: #111;
+}
+
+.pay-option.selected {
+  border-color: #cda858;
+  box-shadow: inset 0 0 0 1px #cda858;
+  background: #fdfaf3;
+}
+
+.pay-option-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #111;
+}
+
+.pay-option-desc {
+  font-size: 12.5px;
+  color: #8a8a86;
+}
+
+.checkout-method-line {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #cda858;
+  margin: 0;
 }
 
 .checkout-check {

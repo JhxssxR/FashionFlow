@@ -10,7 +10,10 @@ namespace FashionFlow.Services;
 public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
 {
     // Returns null on success, or an error message (e.g. stock shortfall).
-    public async Task<string?> FulfillAsync(Order order, string actorEmail)
+    // paymentMethod is stamped on the generated Sale row — "Online" for
+    // PayMongo settlements, "Cash on Delivery" when the order is fulfilled
+    // at placement.
+    public async Task<string?> FulfillAsync(Order order, string actorEmail, string paymentMethod = "Online")
     {
         if (order.Status == "Paid") return null; // idempotent
 
@@ -37,7 +40,7 @@ public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
         var (_, total, points) = await sales.RecordSaleAsync(
             customer,
             saleLines,
-            paymentMethod: "Online",
+            paymentMethod: paymentMethod,
             channel: "Online",
             receiptNo: order.OrderNumber,
             when: DateTime.Now,

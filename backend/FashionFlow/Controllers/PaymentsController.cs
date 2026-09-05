@@ -21,13 +21,31 @@ public class PaymentsController(
 {
     private string PublicBaseUrl => config["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host.Value}";
 
-    // Places an order and returns the payment URL. Requires a signed-in
-    // Customer account — identity and loyalty come from the token, and the
-    // storefront blocks checkout before this point anyway (defence in depth).
+    // Maps the storefront's payment choice to (display name, PayMongo filter).
+    private static readonly Dictionary<string, (string Label, string[] Types)> PaymentMethods =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["gcash"] = ("GCash", ["gcash"]),
+            ["maya"] = ("Maya", ["maya"]),
+            ["card"] = ("Card", ["card"]),
+            ["cod"] = ("Cash on Delivery", [])
+        };
+
+    // Places an order and returns the payment URL (or, for Cash on Delivery,
+    // fulfils the order on the spot). Requires a signed-in Customer account —
+    // identity and loyalty come from the token, and the storefront blocks
+    // checkout before this point anyway (defence in depth).
     [HttpPost("checkout")]
     [Authorize(Roles = "Customer,Admin")]
     public async Task<IActionResult> Checkout(CheckoutRequest req)
     {
+        var methodKey = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "online" : req.PaymentMethod.Trim().ToLowerInvariant();
+        if (methodKey == "cashondelivery") methodKey = "cod";
+        // "online"/omitted → no filter, the hosted page offers every method.
+        if (methodKey != "online" && !PaymentMethods.ContainsKey(methodKey))
+            return BadRequest(new { message = "Unknown payment method." });
+        (string Label, string[] Types)? chosen = methodKey == "online" ? null : PaymentMethods[methodKey];
+
         var customerId = User.CustomerId();
         if (customerId is null)
             return Unauthorized(new { message = "Only customer accounts can place orders. Register or sign in first." });
@@ -66,6 +84,7 @@ public class PaymentsController(
             Subtotal = subtotal,
             Total = subtotal,
             Status = "Pending",
+            PaymentMethod = chosen?.Label ?? "Online",
             CreatedAt = DateTime.Now
         };
         foreach (var (productId, qty) in merged)
@@ -75,8 +94,20 @@ public class PaymentsController(
 
         db.Orders.Add(order);
         db.SystemLogs.Add(Audit.Log(User.Email(),
-            $"Order {orderNumber} placed — {order.ItemsSummary} (₱{subtotal:N0})", "Sales"));
+            $"Order {orderNumber} placed — {order.ItemsSummary} (₱{subtotal:N0}, {order.PaymentMethod})", "Sales"));
         await db.SaveChangesAsync();
+
+        // Cash on Delivery: no gateway involved — reserve stock, record the
+        // sale and loyalty points now; the courier collects the cash later.
+        if (methodKey == "cod")
+        {
+            await using var codTx = await db.Database.BeginTransactionAsync();
+            var codError = await fulfillment.FulfillAsync(order, User.Email(), "Cash on Delivery");
+            await codTx.CommitAsync();
+            if (codError is not null)
+                return Conflict(new { message = codError, status = order.Status });
+            return StatusCode(201, new { orderNumber = orderNumber, cod = true });
+        }
 
         if (paymongo.IsConfigured)
         {
@@ -87,7 +118,8 @@ public class PaymentsController(
                 var (sessionId, checkoutUrl) = await paymongo.CreateCheckoutSessionAsync(
                     order, lineItems,
                     $"{PublicBaseUrl}/#checkout/success/{orderNumber}",
-                    $"{PublicBaseUrl}/#checkout/cancel/{orderNumber}");
+                    $"{PublicBaseUrl}/#checkout/cancel/{orderNumber}",
+                    chosen?.Types);
                 order.CheckoutSessionId = sessionId;
                 await db.SaveChangesAsync();
                 return StatusCode(201, new { orderNumber = orderNumber, checkoutUrl = checkoutUrl, mock = false });
@@ -106,7 +138,9 @@ public class PaymentsController(
             return StatusCode(201, new
             {
                 orderNumber = orderNumber,
-                checkoutUrl = $"{PublicBaseUrl}/#checkout/mock-pay/{orderNumber}",
+                checkoutUrl = methodKey == "online"
+                    ? $"{PublicBaseUrl}/#checkout/mock-pay/{orderNumber}"
+                    : $"{PublicBaseUrl}/#checkout/mock-pay/{orderNumber}/{methodKey}",
                 mock = true
             });
         }
