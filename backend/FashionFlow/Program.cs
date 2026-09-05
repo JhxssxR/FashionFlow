@@ -71,12 +71,14 @@ builder.Services.AddCors(options => options.AddPolicy("dev", policy =>
 
 var app = builder.Build();
 
-// Apply migrations, then seed demo data once on an empty database.
+// Apply migrations, then seed demo data once on an empty database (existing
+// databases just get the variant-size backfill for the storefront picker).
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<FashionFlowDbContext>();
     await db.Database.MigrateAsync();
     await DbSeed.SeedIfEmptyAsync(db);
+    await DbSeed.BackfillVariantSiblingsAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())

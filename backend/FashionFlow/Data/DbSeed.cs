@@ -298,6 +298,73 @@ public static class DbSeed
         return true;
     }
 
+    // The storefront groups products by style and opens a size picker before
+    // anything is added to the cart, so every style needs one row per size
+    // (each with its own stock). The original seed shipped one variant per
+    // style; this backfill adds the missing sizes to both fresh and existing
+    // databases. Idempotent: existing variants are skipped, deleted styles
+    // are left alone.
+    public static async Task BackfillVariantSiblingsAsync(FashionFlowDbContext db)
+    {
+        var defs = new (string name, string size, int stock)[]
+        {
+            ("Linen Blazer", "Small", 22), ("Linen Blazer", "Large", 17),
+            ("Midi Wrap Dress", "Medium", 8), ("Midi Wrap Dress", "Large", 0),
+            ("Wide Leg Trousers", "Small", 9), ("Wide Leg Trousers", "Large", 0),
+            ("Faux Leather Jacket", "Medium", 14), ("Faux Leather Jacket", "Small", 7),
+            ("Silk Slip Dress", "Medium", 19), ("Silk Slip Dress", "Large", 11),
+            ("Floral Wrap Maxi Dress", "Small", 3), ("Floral Wrap Maxi Dress", "Large", 6),
+            ("Tulle Midi Dress", "Medium", 4), ("Tulle Midi Dress", "Large", 2),
+            ("Chambray Shirt", "Medium", 25), ("Chambray Shirt", "Small", 18),
+            ("Essential Crew Tee", "Small", 40), ("Essential Crew Tee", "Large", 31),
+            ("Straight Denim", "30", 6), ("Straight Denim", "34", 9),
+            ("Sherpa Denim Jacket", "Small", 2), ("Sherpa Denim Jacket", "Large", 0),
+            ("Quilted Bomber Jacket", "Medium", 10), ("Quilted Bomber Jacket", "Small", 8)
+        };
+
+        foreach (var byStyle in defs.GroupBy(d => d.name))
+        {
+            var baseRow = await db.Products.OrderBy(p => p.ProductId).FirstOrDefaultAsync(p => p.Name == byStyle.Key);
+            if (baseRow is null) continue; // style removed from the catalog — nothing to extend
+
+            // "Medium / Brown" → colour "Brown" is shared by every sibling.
+            var sep = baseRow.Variant.IndexOf(" / ");
+            var color = sep >= 0 ? baseRow.Variant[(sep + 3)..] : "";
+
+            var existing = await db.Products.Where(p => p.Name == byStyle.Key).Select(p => p.Variant).ToListAsync();
+
+            foreach (var d in byStyle)
+            {
+                var variant = color == "" ? d.size : $"{d.size} / {color}";
+                if (existing.Contains(variant)) continue;
+
+                var sibling = new Product
+                {
+                    Name = baseRow.Name,
+                    Variant = variant,
+                    Price = baseRow.Price,
+                    OriginalPrice = baseRow.OriginalPrice,
+                    Stock = d.stock,
+                    Category = baseRow.Category,
+                    StorefrontCategory = baseRow.StorefrontCategory,
+                    ImageUrl = baseRow.ImageUrl,
+                    IsNew = baseRow.IsNew,
+                    IsActive = true
+                };
+                db.Products.Add(sibling);
+                db.Inventories.Add(new Inventory
+                {
+                    Product = sibling,
+                    Quantity = d.stock,
+                    Warehouse = "Main Warehouse — Quezon City"
+                });
+            }
+        }
+
+        if (db.ChangeTracker.HasChanges())
+            await db.SaveChangesAsync();
+    }
+
     // Creates one sale transaction: lines share a receipt number and the
     // loyalty award (1 pt per ₱100 of the transaction total) is stamped on
     // the lines proportionally so they sum to the ledger entry.

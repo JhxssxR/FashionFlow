@@ -63,3 +63,26 @@ export function initialsOf(name = '') {
   const parts = name.split(' ').filter(Boolean);
   return parts.length === 0 ? '?' : parts.slice(0, 2).map((p) => p[0].toUpperCase()).join('');
 }
+
+// "Medium / Brown" → { size: 'Medium', color: 'Brown' } — one product row is
+// one size/colour combo, so the storefront can offer a size picker per style.
+export const parseVariant = (variant) => {
+  const sep = String(variant ?? '').indexOf(' / ');
+  if (sep < 0) return { size: String(variant ?? ''), color: '' };
+  return { size: String(variant).slice(0, sep), color: String(variant).slice(sep + 3) };
+};
+
+// Clothing sizes in retail order (XS…XL), then numeric sizes (30, 32, 34)
+// ascending, then anything else alphabetically.
+const SIZE_ORDER = ['XS', 'X-Small', 'S', 'Small', 'M', 'Medium', 'L', 'Large', 'XL', 'X-Large'];
+export function sizeSort(a, b) {
+  const ia = SIZE_ORDER.indexOf(a);
+  const ib = SIZE_ORDER.indexOf(b);
+  if (ia !== -1 && ib !== -1) return ia - ib;
+  if (ia !== -1) return -1;
+  if (ib !== -1) return 1;
+  const na = parseFloat(a);
+  const nb = parseFloat(b);
+  if (!isNaN(na) && !isNaN(nb)) return na - nb;
+  return a.localeCompare(b);
+}

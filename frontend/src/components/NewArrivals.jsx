@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApi } from '../api/client';
-import { useCart } from '../context/CartContext.jsx';
-import { peso, fmtDate } from '../utils';
+import ProductModal from './ProductModal.jsx';
+import { peso, fmtDate, parseVariant, sizeSort } from '../utils';
 
 // Categories mirror the header nav (WOMEN / MEN / OUTERWEAR / SALE).
 // A product counts as SALE whenever it has an originalPrice.
@@ -27,8 +27,8 @@ const sectionScrollTargets = {
 const NewArrivals = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [showAll, setShowAll] = useState(false);
+  const [modalStyle, setModalStyle] = useState(null);
   const sectionRef = useRef(null);
-  const cart = useCart();
 
   const products = useApi('/api/products');
   const offersQ = useApi('/api/promotions/active');
@@ -109,14 +109,50 @@ const NewArrivals = () => {
     });
   }, [activeCategory, showAll, products.data, offersQ.data]);
 
-  const allProducts = products.data || [];
-  const filteredProducts = allProducts.filter((product) => {
+  const allProducts = useMemo(() => products.data || [], [products.data]);
+
+  // One product row = one size/colour combo; the storefront sells styles, so
+  // rows sharing a name collapse into a single card whose size picker (the
+  // product modal) lists every variant.
+  const styles = useMemo(() => {
+    const map = new Map();
+    for (const p of allProducts) {
+      let s = map.get(p.name);
+      if (!s) {
+        const { color } = parseVariant(p.variant);
+        map.set(p.name, {
+          name: p.name,
+          imageUrl: p.imageUrl,
+          category: p.category,
+          storefrontCategory: p.storefrontCategory,
+          color,
+          isNew: false,
+          originalPrice: null,
+          minPrice: p.price,
+          totalStock: 0,
+          variants: []
+        });
+        s = map.get(p.name);
+      }
+      s.variants.push(p);
+      s.isNew = s.isNew || p.isNew;
+      s.originalPrice = s.originalPrice || p.originalPrice;
+      s.minPrice = Math.min(s.minPrice, p.price);
+      s.totalStock += p.stock;
+    }
+    return [...map.values()].map((s) => ({
+      ...s,
+      variants: [...s.variants].sort((a, b) => sizeSort(parseVariant(a.variant).size, parseVariant(b.variant).size))
+    }));
+  }, [allProducts]);
+
+  const filteredStyles = styles.filter((style) => {
     if (activeCategory === 'All') return true;
-    if (activeCategory === 'Sale') return Boolean(product.originalPrice);
-    return product.storefrontCategory === activeCategory;
+    if (activeCategory === 'Sale') return Boolean(style.originalPrice);
+    return style.storefrontCategory === activeCategory;
   });
 
-  const visibleProducts = showAll ? filteredProducts : allProducts.slice(0, newArrivalsCount);
+  const visibleStyles = showAll ? filteredStyles : styles.slice(0, newArrivalsCount);
 
   const selectCategory = (category) => {
     setActiveCategory(category);
@@ -184,36 +220,47 @@ const NewArrivals = () => {
       )}
 
       <div className="product-grid">
-        {visibleProducts.map((product, index) => (
-          <div key={product.id} className="product-card reveal" style={{ transitionDelay: `${(index % 4) * 0.12}s` }}>
-            <div className="product-image-container">
-              {(product.isNew || product.originalPrice) && (
+        {visibleStyles.map((style, index) => (
+          <div key={style.name} className="product-card reveal" style={{ transitionDelay: `${(index % 4) * 0.12}s` }}>
+            <div
+              className="product-image-container"
+              role="button"
+              tabIndex={0}
+              aria-label={`View sizes for ${style.name}`}
+              onClick={() => setModalStyle(style)}
+              onKeyDown={(e) => e.key === 'Enter' && setModalStyle(style)}
+            >
+              {(style.isNew || style.originalPrice) && (
                 <div className="badge-row">
-                  {product.isNew && <span className="badge new">NEW</span>}
-                  {product.originalPrice && <span className="badge sale">SALE</span>}
-                  {product.stock <= 5 && <span className="badge low">LOW STOCK</span>}
+                  {style.isNew && <span className="badge new">NEW</span>}
+                  {style.originalPrice && <span className="badge sale">SALE</span>}
+                  {style.totalStock <= 5 && <span className="badge low">LOW STOCK</span>}
                 </div>
               )}
-              <img src={product.imageUrl} alt={product.name} loading="lazy" />
+              <img src={style.imageUrl} alt={style.name} loading="lazy" />
             </div>
             <div className="product-info">
-              <h3 className="product-name">{product.name}</h3>
-              <p className="product-category">{product.category} • {product.variant}</p>
+              <h3 className="product-name">{style.name}</h3>
+              <p className="product-category">
+                {style.category} • {style.color || `${style.variants.length} sizes`}
+              </p>
               <div className="product-price-wrapper">
-                <span className="product-price">{peso(product.price)}</span>
-                {product.originalPrice && <span className="product-original-price">{peso(product.originalPrice)}</span>}
+                <span className="product-price">{peso(style.minPrice)}</span>
+                {style.originalPrice && <span className="product-original-price">{peso(style.originalPrice)}</span>}
               </div>
               <button
                 className="add-cart-btn"
-                onClick={() => cart.add(product)}
-                disabled={product.stock < 1}
+                onClick={() => setModalStyle(style)}
+                disabled={style.totalStock < 1}
               >
-                {product.stock < 1 ? 'OUT OF STOCK' : 'ADD TO CART'}
+                {style.totalStock < 1 ? 'OUT OF STOCK' : 'ADD TO CART'}
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {modalStyle && <ProductModal style={modalStyle} onClose={() => setModalStyle(null)} />}
     </section>
   );
 };
