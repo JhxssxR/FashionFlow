@@ -84,9 +84,6 @@ const CustomerDashboard = ({ user }) => {
 
   // Unified purchase history: POS/online receipts (Sales) + web orders
   // (Orders, which fulfil into Sales once paid).
-  const lifetime = orderRows
-    .filter((r) => r.status === 'Delivered')
-    .reduce((s, r) => s + r.total, 0);
   const orderRows = [
     ...(orders.data || []).map((o) => ({ ...o, dateLabel: fmtDate(o.date), source: 'receipt' })),
     ...(onlineOrders.data || []).map((o) => ({
@@ -96,6 +93,9 @@ const CustomerDashboard = ({ user }) => {
       source: 'online'
     }))
   ].sort((a, b) => (a.dateLabel < b.dateLabel ? 1 : -1));
+  const lifetime = orderRows
+    .filter((r) => r.status === 'Delivered')
+    .reduce((s, r) => s + r.total, 0);
 
   const loyaltyPanel = (
     <Panel title="Loyalty program" subtitle="Earn 1 point for every ₱100 — redeem at checkout">
