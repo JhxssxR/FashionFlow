@@ -19,6 +19,10 @@ public class Order
     // the authoritative lines).
     public string ItemsSummary { get; set; } = "";
     public decimal Subtotal { get; set; }
+    // Promo/voucher discount applied at checkout (loyalty reward vouchers
+    // from /api/loyalty/redeem are the main source).
+    public decimal Discount { get; set; }
+    public string? PromoCode { get; set; }
     public decimal Total { get; set; }
 
     // Pending → Paid | Cancelled | Failed

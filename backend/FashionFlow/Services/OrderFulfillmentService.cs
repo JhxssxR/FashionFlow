@@ -44,8 +44,16 @@ public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
             channel: "Online",
             receiptNo: order.OrderNumber,
             when: DateTime.Now,
-            discount: 0,
+            discount: order.Discount,
             actorEmail);
+
+        // Reward vouchers (RWD-) are single-use — burn them once the order is
+        // actually fulfilled, so a cancelled payment keeps the voucher alive.
+        if (!string.IsNullOrEmpty(order.PromoCode) && order.PromoCode.StartsWith("RWD-"))
+        {
+            var voucher = await db.Promotions.FirstOrDefaultAsync(p => p.Code == order.PromoCode);
+            if (voucher is not null) voucher.IsActive = false;
+        }
 
         order.Status = "Paid";
         order.PaidAt = DateTime.Now;

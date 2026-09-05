@@ -57,8 +57,11 @@ public record SaveCustomerRequest(
     [Required, EmailAddress] string Email);
 
 // ---------- Loyalty ----------
+// RewardId path: redeem a catalog reward (cost comes from the server-side
+// list). Points path: legacy free-form redemption (counter credit).
 public record RedeemPointsRequest(
-    [Range(1, int.MaxValue)] int Points,
+    string? RewardId,
+    int? Points,
     string? Note);
 
 // ---------- Promotions ----------
@@ -89,7 +92,9 @@ public record CheckoutRequest(
     [Required, MinLength(1)] List<CheckoutItemRequest> Items,
     // Optional: "gcash" | "maya" | "card" | "cod". When omitted the PayMongo
     // hosted page offers all of its methods.
-    string? PaymentMethod);
+    string? PaymentMethod,
+    // Optional promo/voucher code (loyalty reward vouchers are RWD-xxxxxx).
+    string? PromoCode);
 
 public record MockConfirmRequest([Required] string OrderNumber);
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
-import { api, getAuth, saveAuth } from '../api/client';
+import { api, getAuth, saveAuth, useApi } from '../api/client';
 import { peso, peso2 } from '../utils';
 
 // Storefront checkout. route is the current hash:
@@ -123,10 +123,51 @@ const methodLabel = (key) => paymentOptions.find((o) => o.key === key)?.label
 const OrderForm = () => {
   const cart = useCart();
   const auth = getAuth();
+  const products = useApi('/api/products');
   const [address, setAddress] = useState('');
   const [method, setMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [promoInput, setPromoInput] = useState('');
+  const [promo, setPromo] = useState(null);
+  const [promoMsg, setPromoMsg] = useState('');
+  const [promoErr, setPromoErr] = useState('');
+  const [checkingPromo, setCheckingPromo] = useState(false);
+
+  const discount = promo?.discount || 0;
+
+  const applyPromo = async () => {
+    const code = promoInput.trim();
+    if (!code) return;
+    setCheckingPromo(true);
+    setPromoErr('');
+    setPromoMsg('');
+    try {
+      // The customer's tier gates Tier:… promos; pull it lazily (admins and
+      // guests don't have a loyalty profile — those just skip the tier match).
+      let tier = null;
+      try {
+        const lo = await api('/api/loyalty/mine');
+        tier = lo.tier;
+      } catch { /* no loyalty profile */ }
+      const cats = cart.items.map((l) => products.data?.find((p) => p.id === l.id)?.category || '');
+      const res = await api('/api/promotions/validate', {
+        method: 'POST',
+        body: { code, subtotal: cart.subtotal, categories: cats, customerTier: tier }
+      });
+      if (!res.valid) {
+        setPromo(null);
+        setPromoErr(res.message || 'This code is not valid.');
+        return;
+      }
+      setPromo({ code: code.toUpperCase(), discount: res.discount });
+      setPromoMsg(res.message || 'Code applied.');
+    } catch (ex) {
+      setPromoErr(ex.message);
+    } finally {
+      setCheckingPromo(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -138,7 +179,8 @@ const OrderForm = () => {
         body: {
           shippingAddress: address,
           paymentMethod: method,
-          items: cart.items.map((l) => ({ productId: l.id, quantity: l.quantity }))
+          items: cart.items.map((l) => ({ productId: l.id, quantity: l.quantity })),
+          promoCode: promo?.code
         }
       });
       if (res.cod) {
@@ -188,9 +230,15 @@ const OrderForm = () => {
               <strong>{peso(l.price * l.quantity)}</strong>
             </div>
           ))}
+          {discount > 0 && (
+            <div className="checkout-line">
+              <span>Voucher {promo.code}</span>
+              <strong>−{peso2(discount)}</strong>
+            </div>
+          )}
           <div className="checkout-line checkout-total">
             <span>TOTAL</span>
-            <strong>{peso2(cart.subtotal)}</strong>
+            <strong>{peso2(cart.subtotal - discount)}</strong>
           </div>
         </div>
 
@@ -199,6 +247,24 @@ const OrderForm = () => {
             <label htmlFor="co-address">SHIPPING ADDRESS</label>
             <textarea id="co-address" rows={3} value={address} placeholder="House no., street, barangay, city"
               onChange={(e) => setAddress(e.target.value)} required />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="co-promo">PROMO OR VOUCHER CODE</label>
+            <div className="form-row">
+              <input
+                id="co-promo"
+                type="text"
+                placeholder="e.g. RWD-AB12CD"
+                value={promoInput}
+                onChange={(e) => { setPromoInput(e.target.value); setPromoMsg(''); setPromoErr(''); }}
+              />
+              <button type="button" className="mini-btn" onClick={applyPromo} disabled={checkingPromo || !promoInput.trim()}>
+                {checkingPromo ? 'CHECKING…' : 'APPLY'}
+              </button>
+            </div>
+            {promoErr && <p className="field-error" role="alert">{promoErr}</p>}
+            {promoMsg && <div className="form-ok" role="status">{promoMsg}</div>}
           </div>
 
           <div className="form-group">
@@ -226,7 +292,7 @@ const OrderForm = () => {
               ? 'PLACING ORDER…'
               : !method
                 ? 'SELECT A PAYMENT METHOD'
-                : `PLACE ORDER — ${peso2(cart.subtotal)}`}
+                : `PLACE ORDER — ${peso2(cart.subtotal - discount)}`}
           </button>
         </form>
       </div>

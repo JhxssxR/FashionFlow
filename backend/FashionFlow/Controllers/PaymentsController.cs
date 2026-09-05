@@ -72,6 +72,30 @@ public class PaymentsController(
         }
 
         var subtotal = merged.Sum(m => products[m.ProductId].Price * m.Quantity);
+
+        // Optional promo/voucher code (loyalty reward vouchers are RWD-xxxxxx,
+        // single-use, created by /api/loyalty/redeem). The discount is computed
+        // with the same rules the POS uses and stamped on the order.
+        decimal discount = 0;
+        Promotion? appliedPromo = null;
+        if (!string.IsNullOrWhiteSpace(req.PromoCode))
+        {
+            var code = req.PromoCode.Trim().ToUpperInvariant();
+            appliedPromo = await db.Promotions.FirstOrDefaultAsync(p => p.Code == code);
+            if (appliedPromo is null)
+                return NotFound(new { message = "Promo code does not exist." });
+            var ineligible = PromoRules.CheckEligible(appliedPromo, DateTime.Now, customer.Tier);
+            if (ineligible is not null)
+                return BadRequest(new { message = ineligible });
+
+            var lineSubtotals = merged.Select(m => products[m.ProductId].Price * m.Quantity).ToArray();
+            var lineCategories = merged.Select(m => products[m.ProductId].Category).ToArray();
+            var clearance = merged.Select(m => products[m.ProductId].OriginalPrice != null).ToArray();
+            discount = PromoRules.ComputeDiscount(appliedPromo, lineSubtotals, lineCategories, clearance, customer.Tier);
+            if (discount <= 0)
+                return BadRequest(new { message = "This promo does not apply to the items in your cart." });
+        }
+
         var orderNumber = await NextOrderNumberAsync();
 
         var order = new Order
@@ -82,7 +106,9 @@ public class PaymentsController(
             ShippingAddress = req.ShippingAddress.Trim(),
             ItemsSummary = string.Join(", ", merged.Select(m => $"{products[m.ProductId].Name} ×{m.Quantity}")),
             Subtotal = subtotal,
-            Total = subtotal,
+            Discount = discount,
+            PromoCode = appliedPromo?.Code,
+            Total = subtotal - discount,
             Status = "Pending",
             PaymentMethod = chosen?.Label ?? "Online",
             CreatedAt = DateTime.Now
@@ -115,6 +141,13 @@ public class PaymentsController(
             {
                 var lineItems = merged.Select(m =>
                     (Name: $"{products[m.ProductId].Name} ({products[m.ProductId].Variant})", Quantity: m.Quantity, UnitPrice: products[m.ProductId].Price)).ToList();
+                // PayMongo cannot take negative lines — fold the discount into
+                // the last line so the hosted page charges the discounted total.
+                if (discount > 0 && lineItems.Count > 0)
+                {
+                    var (name, qty, unit) = lineItems[^1];
+                    lineItems[^1] = (name, qty, Math.Max(0m, unit - discount / qty));
+                }
                 var (sessionId, checkoutUrl) = await paymongo.CreateCheckoutSessionAsync(
                     order, lineItems,
                     $"{PublicBaseUrl}/#checkout/success/{orderNumber}",

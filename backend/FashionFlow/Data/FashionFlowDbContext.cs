@@ -41,6 +41,7 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
         mb.Entity<Order>().HasIndex(o => o.CheckoutSessionId);
         mb.Entity<OrderItem>().HasKey(i => i.OrderItemId);
         mb.Entity<Order>().Property(o => o.Subtotal).HasPrecision(18, 2);
+        mb.Entity<Order>().Property(o => o.Discount).HasPrecision(18, 2);
         mb.Entity<Order>().Property(o => o.Total).HasPrecision(18, 2);
         mb.Entity<OrderItem>().Property(i => i.UnitPrice).HasPrecision(18, 2);
 

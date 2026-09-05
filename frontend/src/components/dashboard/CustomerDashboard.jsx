@@ -5,34 +5,10 @@ import { useApi, api } from '../../api/client';
 import { peso, num, fmtDate } from '../../utils';
 
 const LoyaltyCard = ({ loyalty, onChanged }) => {
-  const [redeemPoints, setRedeemPoints] = useState('');
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
-
   if (!loyalty) return null;
   const tierProgress = loyalty.pointsToNext > 0
     ? Math.min(100, Math.round((loyalty.points / (loyalty.points + loyalty.pointsToNext)) * 100))
     : 100;
-
-  const redeem = async () => {
-    setBusy(true);
-    setErr('');
-    setMsg('');
-    try {
-      const res = await api('/api/loyalty/redeem', {
-        method: 'POST',
-        body: { points: Number(redeemPoints), note: `Redeemed ${redeemPoints} points for voucher` }
-      });
-      setMsg(`Redeemed ${redeemPoints} points — ${num(res.points)} left.`);
-      setRedeemPoints('');
-      onChanged();
-    } catch (ex) {
-      setErr(ex.message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="loyalty-card">
@@ -55,21 +31,67 @@ const LoyaltyCard = ({ loyalty, onChanged }) => {
           <li key={perk}>{perk}</li>
         ))}
       </ul>
-      <div className="form-row">
-        <input
-          type="number"
-          min="1"
-          placeholder="Points to redeem"
-          value={redeemPoints}
-          onChange={(e) => setRedeemPoints(e.target.value)}
-        />
-        <button className="mini-btn" onClick={redeem} disabled={busy || !redeemPoints}>
-          {busy ? 'REDEEMING…' : 'REDEEM POINTS'}
-        </button>
-      </div>
-      {err && <ErrorNote message={err} />}
-      {msg && <div className="form-ok">{msg}</div>}
     </div>
+  );
+};
+
+// Spendable rewards — redeeming deducts the points and issues a single-use
+// voucher code (RWD-…) that applies at online checkout.
+const RewardsStore = ({ loyalty, onChanged }) => {
+  const rewards = useApi('/api/loyalty/rewards');
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+  const [voucher, setVoucher] = useState(null);
+  const points = loyalty?.points ?? 0;
+
+  const redeem = async (r) => {
+    setBusy(r.id);
+    setErr('');
+    setVoucher(null);
+    try {
+      const res = await api('/api/loyalty/redeem', { method: 'POST', body: { rewardId: r.id } });
+      setVoucher({ code: res.code, title: res.title, validTo: res.validTo });
+      onChanged();
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <Panel title="Rewards store" subtitle={`Turn your points into vouchers — you have ${num(points)} points`}>
+      <ErrorNote message={rewards.error || err} />
+      {voucher && (
+        <div className="voucher-ok" role="status">
+          <strong>{voucher.title} — unlocked!</strong>
+          <span>
+            Voucher code <code>{voucher.code}</code>, valid until {fmtDate(voucher.validTo)}.
+            Apply it in the promo field at checkout.
+          </span>
+        </div>
+      )}
+      {rewards.loading && rewards.data === null ? <Loading /> : (
+        <div className="reward-grid">
+          {(rewards.data || []).map((r) => (
+            <div className="reward-card" key={r.id}>
+              <strong>{r.title}</strong>
+              <span>{r.blurb}</span>
+              <div className="reward-foot">
+                <em>{num(r.cost)} pts</em>
+                <button
+                  className="mini-btn"
+                  disabled={busy === r.id || points < r.cost}
+                  onClick={() => redeem(r)}
+                >
+                  {busy === r.id ? 'REDEEMING…' : points < r.cost ? `${num(r.cost - points)} PTS SHORT` : 'REDEEM'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
   );
 };
 
@@ -174,6 +196,15 @@ const CustomerDashboard = ({ user }) => {
                   />
                 )}
               </Panel>
+            </>
+          );
+        }
+
+        if (page === 'rewards') {
+          return (
+            <>
+              {loyaltyPanel}
+              <RewardsStore loyalty={loyalty.data} onChanged={bump} />
             </>
           );
         }

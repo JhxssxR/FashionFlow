@@ -91,7 +91,7 @@ public class PromotionsController(FashionFlowDbContext db) : ControllerBase
     // POS-side validation without charging — the terminal calls this when a
     // code is typed into the cart to preview the discount.
     [HttpPost("validate")]
-    [Authorize(Roles = "Admin,SalesStaff")]
+    [Authorize(Roles = "Admin,SalesStaff,Customer")]
     public async Task<IActionResult> Validate(ValidatePromoRequest req)
     {
         var promo = await db.Promotions.FirstOrDefaultAsync(p => p.Code == req.Code.Trim().ToUpperInvariant());
