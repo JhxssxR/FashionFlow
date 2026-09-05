@@ -7,7 +7,12 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // project docs); CREATE ACCOUNT mode self-registers customer accounts only —
 // staff accounts are invited by an administrator.
 const Login = ({ onBack }) => {
-  const [mode, setMode] = useState('signin');
+  // Deep link support: #login?mode=register opens straight on CREATE ACCOUNT
+  // (the JOIN NOW banner in the storefront rewards section uses it).
+  const [mode, setMode] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    return params.get('mode') === 'register' ? 'register' : 'signin';
+  });
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

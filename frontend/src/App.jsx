@@ -30,7 +30,8 @@ function App() {
       // Always record the raw hash: sub-routes like #checkout/success/FF-10243
       // must re-render even though the top-level view stays 'checkout'.
       setRoute(hash)
-      if (hash === '#login') {
+      if (hash === '#login' || hash.startsWith('#login?')) {
+        // #login?mode=register deep-links straight to CREATE ACCOUNT
         setView('login')
       } else if (hash.startsWith('#dashboard/')) {
         const role = hash.replace('#dashboard/', '')
