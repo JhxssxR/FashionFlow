@@ -54,7 +54,7 @@ public static class DbSeed
 
         var users = new List<User>
         {
-            new() { Name = "Alex Tan", Email = "admin@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("@dm1n!@#", workFactor: 10), Role = "Admin", DashboardKey = "admin", Status = "Active" },
+            new() { Name = "Jhasser Antukan", Email = "admin@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("@dm1n!@#", workFactor: 10), Role = "Admin", DashboardKey = "admin", Status = "Active" },
             new() { Name = "Mara Villanueva", Email = "inventman@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("inv3ntm4n!@#", workFactor: 10), Role = "InventoryManager", DashboardKey = "inventory", Status = "Active" },
             new() { Name = "Carlo Reyes", Email = "purchase@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("purch453!@#", workFactor: 10), Role = "PurchasingOfficer", DashboardKey = "purchasing", Status = "Active" },
             new() { Name = "Jasmine Cruz", Email = "sales@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("s4l3sPOS!@#", workFactor: 10), Role = "SalesStaff", DashboardKey = "sales", Status = "Active" },
