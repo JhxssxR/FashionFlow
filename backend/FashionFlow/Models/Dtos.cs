@@ -109,3 +109,12 @@ public record CreateUserRequest(
 public record UpdateUserRequest(string? Name, string? Role, string? Status);
 
 public record SaveSettingRequest([Required] string Key, [Required] string Value);
+
+// ---------- Notifications ----------
+public record MarkReadRequest(List<int>? Ids);
+
+public record BroadcastRequest(
+    [Required, MinLength(3)] string Title,
+    string? Body,
+    // Null = every active account; otherwise a single role name.
+    string? Role);

@@ -69,12 +69,22 @@ public class PortalController(FashionFlowDbContext db) : ControllerBase
         if (req.Status == "Delivered")
         {
             await PurchaseService.ReceiveAsync(db, po, User.Email());
+            await Notifications.PushRolesAsync(db, ["PurchasingOfficer", "Admin"],
+                $"{po.PONumber} delivered",
+                $"{po.Supplier!.Name} completed the delivery — stock received into inventory.",
+                "Purchasing", "dashboard/purchasing");
         }
         else
         {
             po.Status = req.Status;
             db.SystemLogs.Add(Audit.Log(User.Email(),
                 $"{po.PONumber} status → {req.Status} (supplier: {po.Supplier!.Name})", "Supplier"));
+
+            // Bell: purchasing tracks the supplier's progress on the pipeline.
+            await Notifications.PushRolesAsync(db, ["PurchasingOfficer", "Admin"],
+                $"{po.PONumber} → {req.Status}",
+                $"{po.Supplier!.Name} moved the purchase order to {req.Status}.",
+                "Purchasing", "dashboard/purchasing");
         }
 
         await db.SaveChangesAsync();

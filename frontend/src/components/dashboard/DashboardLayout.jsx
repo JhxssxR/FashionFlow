@@ -1,6 +1,7 @@
 import React from 'react';
 import { clearAuth } from '../../api/client';
 import { initialsOf } from '../../utils';
+import NotificationBell from '../NotificationBell.jsx';
 
 // Sidebar navigation per role, mapped from the project documentation's
 // role-based access list and the 11 subsystem modules.
@@ -167,6 +168,7 @@ const DashboardLayout = ({ role, user, children }) => {
             </p>
           </div>
           <div className="dash-topbar-right">
+            <NotificationBell variant="dash" />
             <span className="dash-role-chip">{config.roleTag}</span>
             <span className="dash-avatar">{user?.initials || initialsOf(user?.name || '')}</span>
           </div>

@@ -29,6 +29,17 @@ public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
                 order.Status = "Failed";
                 db.SystemLogs.Add(Audit.Log(actorEmail,
                     $"Order {order.OrderNumber} failed — insufficient stock for {line.Product.Name}", "Sales"));
+
+                // Bell: the customer paid for something we can't ship — tell them.
+                var failedAccount = order.CustomerId is int failedCid
+                    ? await db.Users.FirstOrDefaultAsync(u => u.CustomerId == failedCid)
+                    : null;
+                if (failedAccount is not null)
+                    Notifications.Push(db, failedAccount.UserId,
+                        $"Order {order.OrderNumber} could not be fulfilled",
+                        $"Payment was received but {line.Product.Name} is out of stock. Our team will contact you about your refund.",
+                        "Order", "dashboard/customer");
+
                 await db.SaveChangesAsync();
                 return $"Insufficient stock for {line.Product.Name}.";
             }
@@ -59,6 +70,15 @@ public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
         order.PaidAt = DateTime.Now;
         db.SystemLogs.Add(Audit.Log(actorEmail,
             $"Payment received for {order.OrderNumber} — fulfilled as sales (₱{total:N0})", "Sales"));
+
+        // Bell: the customer's account learns their order is confirmed.
+        var account = customer is null ? null : await db.Users.FirstOrDefaultAsync(u => u.CustomerId == customer.CustomerId);
+        if (account is not null)
+            Notifications.Push(db, account.UserId,
+                $"Order {order.OrderNumber} confirmed",
+                $"Payment received via {paymentMethod} — {order.ItemsSummary}. We're preparing your items.",
+                "Order", "dashboard/customer");
+
         await db.SaveChangesAsync();
         return null;
     }

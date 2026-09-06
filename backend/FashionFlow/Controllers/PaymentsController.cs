@@ -121,6 +121,14 @@ public class PaymentsController(
         db.Orders.Add(order);
         db.SystemLogs.Add(Audit.Log(User.Email(),
             $"Order {orderNumber} placed — {order.ItemsSummary} (₱{subtotal:N0}, {order.PaymentMethod})", "Sales"));
+
+        // Bell: admin and the sales floor see the order the moment it's placed.
+        var placedBody = $"{order.ItemsSummary} — ₱{order.Total:N0} ({order.PaymentMethod}), awaiting payment.";
+        await Notifications.PushRoleAsync(db, "Admin",
+            $"New online order {orderNumber}", placedBody, "Order", "dashboard/admin");
+        await Notifications.PushRoleAsync(db, "SalesStaff",
+            $"New online order {orderNumber}", placedBody, "Order", "dashboard/sales");
+
         await db.SaveChangesAsync();
 
         // Cash on Delivery: no gateway involved — reserve stock, record the

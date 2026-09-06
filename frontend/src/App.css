@@ -1290,6 +1290,17 @@
   position: relative;
 }
 
+/* Storefront notification bell: sit above the hero/carousel layers and
+   match the cart badge's offset on the smaller icon button. */
+.notif-store .notif-panel {
+  z-index: 200;
+}
+
+.notif-store .notif-badge {
+  top: -5px;
+  right: -7px;
+}
+
 .cart-badge {
   position: absolute;
   top: -4px;

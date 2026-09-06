@@ -21,6 +21,7 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -40,6 +41,9 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
         mb.Entity<Order>().HasIndex(o => o.OrderNumber).IsUnique();
         mb.Entity<Order>().HasIndex(o => o.CheckoutSessionId);
         mb.Entity<OrderItem>().HasKey(i => i.OrderItemId);
+        mb.Entity<Notification>().HasOne(n => n.User).WithMany()
+            .HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
+        mb.Entity<Notification>().HasIndex(n => new { n.UserId, n.IsRead });
         mb.Entity<Order>().Property(o => o.Subtotal).HasPrecision(18, 2);
         mb.Entity<Order>().Property(o => o.Discount).HasPrecision(18, 2);
         mb.Entity<Order>().Property(o => o.Total).HasPrecision(18, 2);

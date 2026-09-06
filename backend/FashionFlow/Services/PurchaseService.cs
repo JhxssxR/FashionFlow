@@ -39,5 +39,16 @@ public static class PurchaseService
 
         db.SystemLogs.Add(Audit.Log(actorEmail,
             $"Delivery completed: {po.PONumber} — {product.Name} ×{po.Quantity} received into stock", "Supplier"));
+
+        // Bell: inventory that stock landed, finance that the payable is due.
+        var supplier = po.Supplier ?? await db.Suppliers.FirstAsync(s => s.SupplierId == po.SupplierId);
+        await Notifications.PushRoleAsync(db, "InventoryManager",
+            $"Stock received: {po.PONumber}",
+            $"{product.Name} ×{po.Quantity} from {supplier.Name} added to inventory.",
+            "Inventory", "dashboard/inventory");
+        await Notifications.PushRoleAsync(db, "Accountant",
+            $"Payable due: {po.PONumber}",
+            $"₱{po.Amount:N0} to {supplier.Name} for {product.Name} ×{po.Quantity} (delivered).",
+            "Account", "dashboard/accountant");
     }
 }

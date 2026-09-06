@@ -28,6 +28,12 @@ public class SaleService(FashionFlowDbContext db)
         var subtotal = lines.Sum(l => l.Product.Price * l.Quantity);
         var total = subtotal - discount;
 
+        // Reorder threshold from System Settings (InventoryController uses the
+        // same key) — a sale that crosses it flags the inventory managers once.
+        var lowRaw = await db.AppSettings.Where(a => a.Key == "LowStockThreshold")
+            .Select(a => a.Value).FirstOrDefaultAsync();
+        var lowAt = int.TryParse(lowRaw, out var low) ? low : 12;
+
         var pointsEarned = totalPointsOverride ?? (customer is null ? 0 : LoyaltyRules.PointsFor(total));
 
         // Per-line stamps are allocated proportionally so a receipt's lines
@@ -65,6 +71,14 @@ public class SaleService(FashionFlowDbContext db)
             product.Stock -= qty;
             var inv = product.Inventories.FirstOrDefault();
             if (inv is not null) inv.Quantity -= qty;
+
+            // Bell: only when this sale is the one that crosses the threshold —
+            // not on every subsequent sale while stock stays low.
+            if (product.Stock + qty > lowAt && product.Stock <= lowAt)
+                await Notifications.PushRoleAsync(db, "InventoryManager",
+                    $"Low stock: {product.Name}",
+                    $"{product.Stock} left after {receiptNo} — at or below the reorder threshold ({lowAt}).",
+                    "Inventory", "dashboard/inventory");
 
             db.StockMovements.Add(new StockMovement
             {

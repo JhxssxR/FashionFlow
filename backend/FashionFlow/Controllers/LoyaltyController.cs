@@ -126,6 +126,15 @@ public class LoyaltyController(FashionFlowDbContext db) : ControllerBase
             Note = note
         });
         db.SystemLogs.Add(Audit.Log(User.Email(), $"Loyalty redemption: {points} points by {customer.Name}", "Sales"));
+
+        // Bell: confirm the redemption — and hand over the voucher code — right away.
+        Notifications.Push(db, User.UserId(),
+            reward is not null ? $"Voucher issued: {reward.Value.Title}" : $"{points} points redeemed",
+            reward is not null
+                ? $"Code {voucherCode} — saved under My Promotions. Valid until {DateOnly.FromDateTime(DateTime.Today.AddDays(30)).ToString("MMM d, yyyy")}."
+                : note,
+            "Loyalty", "dashboard/customer");
+
         await db.SaveChangesAsync();
 
         return Ok(new

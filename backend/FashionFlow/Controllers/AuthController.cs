@@ -101,6 +101,13 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
         };
         db.Users.Add(user);
         db.SystemLogs.Add(Audit.Log(email, "Customer account registered via storefront", "Auth"));
+
+        // Bell: admins see every new storefront registration.
+        await Notifications.PushRoleAsync(db, "Admin",
+            "New customer registered",
+            $"{name} ({email}) joined via the storefront.",
+            "Account", "dashboard/admin");
+
         await db.SaveChangesAsync();
 
         var (token, expiresAt) = tokens.CreateToken(user);

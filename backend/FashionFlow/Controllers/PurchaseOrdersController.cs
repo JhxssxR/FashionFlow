@@ -75,6 +75,15 @@ public class PurchaseOrdersController(FashionFlowDbContext db) : ControllerBase
         db.PurchaseOrders.Add(po);
         db.SystemLogs.Add(Audit.Log(User.Email(),
             $"{po.PONumber} created for {supplier.Name} — {product.Name} ×{req.Quantity}", "Purchasing"));
+
+        // Bell: the supplier's portal account sees the new order to confirm.
+        var supplierAccount = await db.Users.FirstOrDefaultAsync(u => u.SupplierId == po.SupplierId);
+        if (supplierAccount is not null)
+            Notifications.Push(db, supplierAccount.UserId,
+                $"New purchase order {po.PONumber}",
+                $"{product.Name} ×{po.Quantity} — ₱{po.Amount:N0}. Please review and confirm.",
+                "Purchasing", "dashboard/supplier");
+
         await db.SaveChangesAsync();
 
         return StatusCode(201, new { id = po.PONumber, purchaseId = po.PurchaseId, po.Amount, po.Status });
@@ -103,6 +112,14 @@ public class PurchaseOrdersController(FashionFlowDbContext db) : ControllerBase
             po.Status = req.Status;
             db.SystemLogs.Add(Audit.Log(User.Email(),
                 $"{po.PONumber} status → {req.Status} ({po.Supplier!.Name})", "Purchasing"));
+
+            // Bell: keep the supplier's portal in step with the pipeline.
+            var supplierAccount = await db.Users.FirstOrDefaultAsync(u => u.SupplierId == po.SupplierId);
+            if (supplierAccount is not null)
+                Notifications.Push(db, supplierAccount.UserId,
+                    $"{po.PONumber} → {req.Status}",
+                    $"FashionFlow moved your purchase order to {req.Status}.",
+                    "Purchasing", "dashboard/supplier");
         }
 
         await db.SaveChangesAsync();
