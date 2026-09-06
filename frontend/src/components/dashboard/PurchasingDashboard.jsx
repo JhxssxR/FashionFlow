@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
@@ -11,7 +11,16 @@ import { peso, num, CHART_COLORS, fmtDate } from '../../utils';
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.green, CHART_COLORS.red];
 
-const NewPOForm = ({ suppliers, products, onDone }) => {
+// ERP category → the supplier company that carries that goods category.
+const SUPPLIER_CATEGORY = {
+  Bottoms: 'Denim & Bottoms',
+  Shirts: 'Denim & Bottoms',
+  Dresses: 'Dresses',
+  Outerwear: 'Outerwear',
+  Tops: 'Tops & Tees'
+};
+
+const NewPOForm = ({ suppliers, products, onDone, prefill }) => {
   const [supplierId, setSupplierId] = useState('');
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -20,6 +29,17 @@ const NewPOForm = ({ suppliers, products, onDone }) => {
   const [err, setErr] = useState('');
   const [ok, setOk] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // One-click reorder: the suggestions panel prefills product + qty (+ the
+  // suggested wholesale cost) and jumps to this page.
+  useEffect(() => {
+    if (!prefill) return;
+    const id = String(prefill.productId);
+    setProductId(id);
+    setQuantity(String(prefill.quantity ?? ''));
+    const p = (products || []).find((x) => String(x.id) === id);
+    if (p) setUnitCost(Math.round(p.price * 0.65));
+  }, [prefill, products]);
 
   const pickProduct = (id) => {
     setProductId(id);
@@ -83,7 +103,9 @@ const PurchasingDashboard = ({ user }) => {
   const suppliers = useApi('/api/suppliers', [tick]);
   const products = useApi('/api/products', []);
   const spend = useApi('/api/reports/purchasing-summary?days=14', [tick]);
+  const lowStock = useApi('/api/inventory/low-stock', [tick]);
   const bump = () => setTick((t) => t + 1);
+  const [poPrefill, setPoPrefill] = useState(null);
 
   const rows = pos.data || [];
   const openSpend = rows.filter((p) => p.status !== 'Cancelled').reduce((s, p) => s + p.amount, 0);
@@ -115,6 +137,15 @@ const PurchasingDashboard = ({ user }) => {
     </ResponsiveContainer>
   );
 
+  // One-click reorder: everything at/below the threshold, with the matching
+  // supplier and a suggested quantity (top back up to twice the threshold).
+  const threshold = lowStock.data?.threshold ?? 12;
+  const reorderRows = (lowStock.data?.rows || []).map((r) => ({
+    ...r,
+    suggestedQty: Math.max(20, 2 * threshold - r.stock),
+    supplier: (suppliers.data || []).find((s) => s.category === (SUPPLIER_CATEGORY[r.category] || ''))?.name || '—'
+  }));
+
   const poTable = (rowsToShow) => (
     <DataTable
       keyField="id"
@@ -134,16 +165,21 @@ const PurchasingDashboard = ({ user }) => {
 
   return (
     <DashboardLayout role="purchasing" user={user}>
-      {(page) => {
+      {(page, goTo) => {
         if (page === 'orders') {
           return (
             <>
+              {poPrefill && (
+                <div className="form-ok">
+                  Reorder pre-filled from the low-stock suggestions — pick a supplier (suggested: {poPrefill.supplier}), review the quantity and send.
+                </div>
+              )}
               <div className="stat-grid">
                 <StatCard label="OPEN PO VALUE" value={peso(openSpend)} sub={`${rows.filter((p) => p.status !== 'Cancelled' && p.status !== 'Delivered').length} active orders`} />
                 <StatCard label="AWAITING APPROVAL" value={num(pending)} sub="Pending supplier confirmation" tone="red" />
               </div>
               <Panel title="Issue a purchase order" subtitle="Unit cost is suggested at 65% of retail — edit freely">
-                <NewPOForm suppliers={suppliers.data} products={products.data} onDone={bump} />
+                <NewPOForm suppliers={suppliers.data} products={products.data} onDone={() => { bump(); setPoPrefill(null); }} prefill={poPrefill} />
               </Panel>
               <Panel title="Purchasing spend — last 14 days" subtitle="Outbound to suppliers, from issued POs">
                 <ErrorNote message={spend.error} />
@@ -260,6 +296,36 @@ const PurchasingDashboard = ({ user }) => {
               <StatCard label="ACTIVE SUPPLIERS" value={num(suppliers.data?.length)} sub={`Avg on-time rate ${avgOnTime}%`} tone="purple" />
               <StatCard label="SPEND (14 DAYS)" value={peso(spend.data?.total)} sub="From issued purchase orders" tone="dark" />
             </div>
+
+            <Panel title="Reorder suggestions" subtitle={`Products at or below ${threshold} units (live from Inventory) — CREATE PO pre-fills the purchase order form`}>
+              <ErrorNote message={lowStock.error} />
+              {lowStock.loading && !lowStock.data ? <Loading /> : (
+                <DataTable
+                  keyField="id"
+                  emptyTitle="NO REORDER NEEDED"
+                  emptyNote="Nothing is at or below the low-stock threshold right now."
+                  columns={[
+                    { key: 'name', label: 'Product', render: (r) => `${r.name} — ${r.variant}` },
+                    { key: 'stock', label: 'On hand', render: (r) => <strong>{r.stock}</strong> },
+                    { key: 'suggestedQty', label: 'Suggested qty' },
+                    { key: 'supplier', label: 'Suggested supplier' },
+                    {
+                      key: 'action',
+                      label: '',
+                      render: (r) => (
+                        <button
+                          className="mini-btn"
+                          onClick={() => { setPoPrefill({ productId: r.id, quantity: r.suggestedQty, supplier: r.supplier }); goTo('orders'); }}
+                        >
+                          CREATE PO
+                        </button>
+                      )
+                    }
+                  ]}
+                  rows={reorderRows}
+                />
+              )}
+            </Panel>
 
             <div className="panel-grid panel-grid-2-1">
               <Panel title="Purchasing spend — last 14 days" subtitle="Outbound to suppliers">

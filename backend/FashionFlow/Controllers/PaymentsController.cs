@@ -281,4 +281,70 @@ public class PaymentsController(
             .ToListAsync();
         return Ok(rows);
     }
+
+    // Forward-only delivery pipeline AFTER payment. "Paid" is stamped by
+    // fulfilment; staff move the order the rest of the way.
+    private static readonly string[] DeliveryPipeline = ["Paid", "Shipped", "Out for Delivery", "Delivered"];
+
+    // Staff view of every online order (delivery tracking on the Admin
+    // dashboard) — the staff-side counterpart of /orders/mine.
+    [HttpGet("orders")]
+    [Authorize(Roles = "Admin,SalesStaff")]
+    public async Task<IActionResult> All([FromQuery] string? status)
+    {
+        var q = db.Orders.Include(o => o.Customer).AsQueryable();
+        if (!string.IsNullOrEmpty(status)) q = q.Where(o => o.Status == status);
+
+        var rows = await q.OrderByDescending(o => o.CreatedAt)
+            .Select(o => new
+            {
+                id = o.OrderNumber,
+                date = o.CreatedAt,
+                customer = o.Customer == null ? o.GuestEmail : o.Customer.Name,
+                items = o.ItemsSummary,
+                total = o.Total,
+                paymentMethod = o.PaymentMethod,
+                o.Status
+            })
+            .ToListAsync();
+        return Ok(rows);
+    }
+
+    // Move a paid order along the delivery pipeline. Each step notifies the
+    // customer's bell, so tracking needs no page refresh on their side.
+    [HttpPut("orders/{orderNumber}/status")]
+    [Authorize(Roles = "Admin,SalesStaff")]
+    public async Task<IActionResult> SetDeliveryStatus(string orderNumber, UpdateStatusRequest req)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+        if (order is null) return NotFound(new { message = "Order not found." });
+        if (!DeliveryPipeline.Contains(req.Status))
+            return BadRequest(new { message = $"Status must be one of: {string.Join(", ", DeliveryPipeline)}." });
+        if (order.Status == req.Status)
+            return BadRequest(new { message = $"Order is already {req.Status}." });
+        if (Array.IndexOf(DeliveryPipeline, req.Status) != Array.IndexOf(DeliveryPipeline, order.Status) + 1)
+            return Conflict(new { message = $"Cannot move from {order.Status} to {req.Status}. Follow Paid → Shipped → Out for Delivery → Delivered." });
+
+        order.Status = req.Status;
+        db.SystemLogs.Add(Audit.Log(User.Email(), $"Order {order.OrderNumber} → {req.Status}", "Sales"));
+
+        var (title, body) = req.Status switch
+        {
+            "Shipped" => ($"Order {order.OrderNumber} has shipped",
+                "Your package is on its way — out for delivery soon."),
+            "Out for Delivery" => ($"Order {order.OrderNumber} is out for delivery",
+                "The courier is bringing your package today. Keep your phone handy!"),
+            _ => ($"Order {order.OrderNumber} was delivered",
+                "Your order has arrived. Enjoy your new pieces — and don't forget to redeem your points!")
+        };
+        if (order.CustomerId is int cid)
+        {
+            var recipient = await db.Users.FirstOrDefaultAsync(u => u.CustomerId == cid);
+            if (recipient is not null)
+                Notifications.Push(db, recipient.UserId, title, body, "Order", "dashboard/customer");
+        }
+
+        await db.SaveChangesAsync();
+        return Ok(new { id = order.OrderNumber, order.Status });
+    }
 }

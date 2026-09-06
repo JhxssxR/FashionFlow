@@ -6,7 +6,7 @@ import {
 import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote, Pager } from './DashboardShared';
 import { useApi, api } from '../../api/client';
-import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
+import { peso, num, CHART_COLORS, fmtDate, fmtDateTime, downloadCsv } from '../../utils';
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.purple, CHART_COLORS.green, '#b9b9b9'];
@@ -67,6 +67,128 @@ const InviteForm = ({ onDone }) => {
       {err && <ErrorNote message={err} />}
       {msg && <div className="form-ok">{msg}</div>}
     </form>
+  );
+};
+
+// Pushes a notification to every active account (or one role) via the
+// broadcast API — the admin's megaphone for promos and maintenance notices.
+const AnnouncementForm = () => {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [role, setRole] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      const res = await api('/api/notifications/broadcast', {
+        method: 'POST',
+        body: { title, body, role: role || null }
+      });
+      setMsg(`Announcement sent — delivered to ${res.delivered} account${res.delivered === 1 ? '' : 's'}.`);
+      setTitle('');
+      setBody('');
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="inline-form" onSubmit={submit}>
+      <div className="form-row">
+        <input placeholder="Title (e.g. FLASH SALE FRIDAY)" value={title} onChange={(e) => setTitle(e.target.value)} required minLength={3} />
+        <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Send to role">
+          <option value="">Everyone (all active accounts)</option>
+          {ROLE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label} only</option>)}
+        </select>
+      </div>
+      <div className="form-row">
+        <input placeholder="Message (optional)" value={body} onChange={(e) => setBody(e.target.value)} />
+        <button className="mini-btn" type="submit" disabled={busy}>{busy ? 'SENDING…' : '📣 SEND ANNOUNCEMENT'}</button>
+      </div>
+      {err && <ErrorNote message={err} />}
+      {msg && <div className="form-ok">{msg}</div>}
+    </form>
+  );
+};
+
+// Delivery tracking: staff move paid orders down the pipeline; the customer's
+// bell is notified at every step (see PaymentsController.SetDeliveryStatus).
+const NEXT_DELIVERY_STEP = { Paid: 'Shipped', Shipped: 'Out for Delivery', 'Out for Delivery': 'Delivered' };
+
+const OnlineOrders = () => {
+  const [tick, setTick] = useState(0);
+  const [busyId, setBusyId] = useState('');
+  const [err, setErr] = useState('');
+  const orders = useApi('/api/orders', [tick]);
+
+  const advance = async (row) => {
+    const next = NEXT_DELIVERY_STEP[row.status];
+    if (!next) return;
+    setBusyId(row.id);
+    setErr('');
+    try {
+      await api(`/api/orders/${row.id}/status`, { method: 'PUT', body: { status: next } });
+      setTick((t) => t + 1);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  return (
+    <>
+      <div className="stat-grid">
+        <StatCard label="ONLINE ORDERS" value={num(orders.data?.length)} sub="All storefront orders" />
+        <StatCard
+          label="IN DELIVERY"
+          value={num((orders.data || []).filter((o) => o.status === 'Paid' || o.status === 'Shipped' || o.status === 'Out for Delivery').length)}
+          sub="Paid orders not yet delivered"
+          tone="purple"
+        />
+      </div>
+      <Panel title="Online orders" subtitle="Move paid orders along: Paid → Shipped → Out for Delivery → Delivered (the customer is notified at every step)">
+        <ErrorNote message={orders.error || err} />
+        {orders.loading && !orders.data ? <Loading /> : (
+          <DataTable
+            keyField="id"
+            emptyTitle="NO ONLINE ORDERS YET"
+            emptyNote="Storefront checkouts appear here — POS sales live in the Sales dashboard."
+            columns={[
+              { key: 'id', label: 'Order' },
+              { key: 'date', label: 'Placed', width: 170, render: (r) => fmtDateTime(r.date) },
+              { key: 'customer', label: 'Customer' },
+              { key: 'items', label: 'Items' },
+              { key: 'total', label: 'Total', render: (r) => peso(r.total) },
+              { key: 'paymentMethod', label: 'Payment' },
+              { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+              {
+                key: 'next',
+                label: 'Delivery',
+                render: (r) => NEXT_DELIVERY_STEP[r.status] ? (
+                  <button
+                    className="mini-btn"
+                    disabled={busyId === r.id}
+                    onClick={() => advance(r)}
+                  >
+                    {busyId === r.id ? 'SAVING…' : `MARK ${NEXT_DELIVERY_STEP[r.status].toUpperCase()}`}
+                  </button>
+                ) : (r.status === 'Pending' ? 'Awaiting payment' : '—')
+              }
+            ]}
+            rows={orders.data || []}
+          />
+        )}
+      </Panel>
+    </>
   );
 };
 
@@ -164,6 +286,10 @@ const AdminDashboard = ({ user }) => {
   return (
     <DashboardLayout role="admin" user={user}>
       {(page) => {
+        if (page === 'orders') {
+          return <OnlineOrders />;
+        }
+
         if (page === 'users') {
           return (
             <>
@@ -173,6 +299,9 @@ const AdminDashboard = ({ user }) => {
               </div>
               <Panel title="Invite a user" subtitle="Creates the account with a BCrypt-hashed password">
                 <InviteForm onDone={bump} />
+              </Panel>
+              <Panel title="Send an announcement" subtitle="Pushes a notification to every account's bell — target one role or everyone">
+                <AnnouncementForm />
               </Panel>
               <Panel title="Users & roles" subtitle="Every account in the system, across all modules">
                 <ErrorNote message={usersQ.error} />
@@ -200,7 +329,21 @@ const AdminDashboard = ({ user }) => {
             <>
               <Panel title="Revenue — last 30 days" subtitle="System-wide reporting across storefront, POS and online orders">
                 <ErrorNote message={sales.error} />
-                {sales.loading ? <Loading /> : revenueChart}
+                {sales.loading ? <Loading /> : (
+                  <>
+                    {revenueChart}
+                    <button
+                      className="mini-btn"
+                      onClick={() => downloadCsv('sales-summary-30days.csv', [
+                        { key: 'date', label: 'Date' },
+                        { key: 'revenue', label: 'Revenue' },
+                        { key: 'orders', label: 'Orders' }
+                      ], series)}
+                    >
+                      DOWNLOAD CSV
+                    </button>
+                  </>
+                )}
               </Panel>
               <Panel title="Saved reports" subtitle="Generated and archived reports">
                 <ErrorNote message={reports.error} />

@@ -26,6 +26,8 @@ export function statusTone(status) {
     case 'Paid':
       return 'ok';
     case 'In Transit':
+    case 'Shipped':
+    case 'Out for Delivery':
     case 'Scheduled':
       return 'info';
     case 'Pending':
@@ -37,6 +39,24 @@ export function statusTone(status) {
     default:
       return 'neutral';
   }
+}
+
+// Client-side CSV export for report tables — no backend round-trip. The BOM
+// keeps Excel happy with ₱ signs and other non-ASCII text.
+export function downloadCsv(filename, columns, rows) {
+  const esc = (v) => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const cell = (c, r) => (typeof c.value === 'function' ? c.value(r) : r[c.key]);
+  const lines = [columns.map((c) => esc(c.label)).join(',')];
+  for (const r of rows) lines.push(columns.map((c) => esc(cell(c, r))).join(','));
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // "2026-09-04" → "Sep 4, 2026" without Date parsing surprises.

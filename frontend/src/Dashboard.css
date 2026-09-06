@@ -84,7 +84,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  /* extra air below the profile so the action links read as their own group */
+  margin-bottom: 22px;
 }
 
 .dash-user-meta {
@@ -130,6 +131,16 @@
 
 .dash-back-link:hover {
   color: #fff;
+}
+
+/* Destructive action gets its own colour so it never blends in with
+   plain navigation links (his ask: "the log out should be red"). */
+.dash-signout {
+  color: #e2606c;
+}
+
+.dash-signout:hover {
+  color: #ff8291;
 }
 
 /* ---------- Main area ---------- */

@@ -11,6 +11,7 @@ const ROLE_CONFIG = {
     roleTag: 'ADMIN',
     pages: [
       { id: 'overview', label: 'Overview' },
+      { id: 'orders', label: 'Online Orders' },
       { id: 'users', label: 'Users & Roles' },
       { id: 'reports', label: 'Reports' },
       { id: 'logs', label: 'System Logs' },
@@ -135,7 +136,7 @@ const DashboardLayout = ({ role, user, children }) => {
               <span>{config.label}</span>
             </div>
           </div>
-          <a href="#" className="dash-back-link" onClick={logout}>
+          <a href="#" className="dash-back-link dash-signout" onClick={logout}>
             SIGN OUT
           </a>
           <a href="#" className="dash-back-link" onClick={goStore}>
@@ -173,7 +174,7 @@ const DashboardLayout = ({ role, user, children }) => {
             <span className="dash-avatar">{user?.initials || initialsOf(user?.name || '')}</span>
           </div>
         </header>
-        <main className="dash-content">{children(activePage)}</main>
+        <main className="dash-content">{children(activePage, setActivePage)}</main>
       </div>
     </div>
   );

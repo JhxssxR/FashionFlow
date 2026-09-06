@@ -6,6 +6,7 @@ import {
 import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
 import { useApi } from '../../api/client';
+import { downloadCsv } from '../../utils';
 import { peso, num, CHART_COLORS, fmtDate } from '../../utils';
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
@@ -86,7 +87,21 @@ const AccountantDashboard = ({ user }) => {
             <>
               <Panel title="Monthly revenue vs expenses" subtitle="Live: Sales revenue vs purchase orders issued, year to date">
                 <ErrorNote message={finance.error} />
-                {finance.loading ? <Loading /> : monthlyChart}
+                {finance.loading ? <Loading /> : (
+                  <>
+                    {monthlyChart}
+                    <button
+                      className="mini-btn"
+                      onClick={() => downloadCsv('financial-monthly.csv', [
+                        { key: 'month', label: 'Month' },
+                        { key: 'revenue', label: 'Revenue' },
+                        { key: 'expenses', label: 'Expenses' }
+                      ], d.monthly || [])}
+                    >
+                      DOWNLOAD CSV
+                    </button>
+                  </>
+                )}
               </Panel>
               <Panel title="Where the money goes" subtitle="Purchasing spend by supplier specialty, year to date">
                 {finance.loading ? <Loading /> : (
