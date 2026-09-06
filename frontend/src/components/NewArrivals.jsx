@@ -30,6 +30,7 @@ const NewArrivals = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [modal, setModal] = useState(null);
   const sectionRef = useRef(null);
+  const titleRef = useRef(null);
 
   const products = useApi('/api/products');
   const offersQ = useApi('/api/promotions/active');
@@ -60,7 +61,16 @@ const NewArrivals = () => {
     // offers bar sits exactly at the viewport top. Smooth scrolling to the
     // bar element itself silently no-ops in some webviews.
     const scrollForHash = (hash, instant = false) => {
-      sectionRef.current?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
+      // Category clicks (#women/#men/#outerwear/#sale) and header searches
+      // land on the section TITLE — the dedicated category-page view: title,
+      // tabs, grid. They jump instantly (a page-switch feel, and smooth
+      // scrolling silently no-ops in some embedded webviews). Hero jumps
+      // (#shop/#offers) keep landing on the section top, where the offers
+      // bar sits.
+      const landsOnTitle = Boolean(hashCategories[hash]) || isSearchHash(hash);
+      const target = landsOnTitle ? titleRef.current : sectionRef.current;
+      const behavior = instant || landsOnTitle ? 'auto' : 'smooth';
+      target?.scrollIntoView({ behavior, block: 'start' });
     };
 
     // Header search uses #search/<term> with the original casing intact —
@@ -217,7 +227,7 @@ const NewArrivals = () => {
         </div>
       </div>
 
-      <div className="section-header reveal">
+      <div className="section-header reveal" ref={titleRef}>
         <h2 className="section-title">{sectionTitle}</h2>
         {showAll ? (
           <a href="#" className="view-all" onClick={collapse}>Show Less ↑</a>
