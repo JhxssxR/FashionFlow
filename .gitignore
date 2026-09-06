@@ -12,3 +12,6 @@ wwwroot/
 
 # Office/Word lock files
 ~$*
+
+# Production publish output (upload-only, never committed)
+backend/FashionFlow/publish/
