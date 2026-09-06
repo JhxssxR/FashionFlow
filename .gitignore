@@ -9,3 +9,6 @@ wwwroot/
 *.userosscache
 *.sln.docstates
 .vs/
+
+# Office/Word lock files
+~$*
