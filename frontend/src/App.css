@@ -68,7 +68,8 @@
 }
 
 .logo-img {
-  height: 24px;
+  height: 60px;
+  width: auto;
 }
 
 .header-nav ul {
@@ -93,6 +94,7 @@
 .header-actions {
   display: flex;
   gap: 1.5rem;
+  align-items: center;
 }
 
 .icon-btn {
@@ -1288,6 +1290,82 @@
 /* ---------- Storefront cart drawer + checkout ---------- */
 .cart-btn {
   position: relative;
+}
+
+/* Account dropdown: "HI, {NAME}" opens a small menu (dashboard / sign out)
+   instead of two separate header buttons. */
+.account-menu {
+  position: relative;
+}
+
+.account-caret {
+  width: 11px;
+  height: 11px;
+  margin-left: 5px;
+  transition: transform 0.15s ease;
+}
+
+.account-caret.open {
+  transform: rotate(180deg);
+}
+
+.account-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 215px;
+  max-width: calc(100vw - 24px);
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+  z-index: 210;
+}
+
+.account-dropdown-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0ed;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-dropdown-head strong {
+  font-size: 0.84rem;
+}
+
+.account-dropdown-head span {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+
+.account-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 11px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.account-dropdown button:hover {
+  background: #faf9f6;
+}
+
+.account-dropdown .account-dropdown-signout {
+  color: #c0392b;
+  border-top: 1px solid #f0f0ed;
 }
 
 /* Storefront notification bell: sit above the hero/carousel layers and

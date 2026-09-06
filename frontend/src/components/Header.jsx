@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
 import { getAuth, clearAuth } from '../api/client';
 import NotificationBell from './NotificationBell.jsx';
@@ -11,6 +11,8 @@ const Header = ({ onLoginClick }) => {
   const [, setAuthTick] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   // Search rides the same hash-routing as the category links:
   // #search/<term> → NewArrivals filters style names and shows all matches.
@@ -28,6 +30,21 @@ const Header = ({ onLoginClick }) => {
     setAuthTick((t) => t + 1); // re-render now; no hashchange fires if already on ''
     if (window.location.hash) window.location.hash = '';
   };
+
+  // Close the account dropdown on outside click / Escape.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onDoc = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    const onKey = (e) => e.key === 'Escape' && setMenuOpen(false);
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   return (
     <>
@@ -70,7 +87,7 @@ const Header = ({ onLoginClick }) => {
             aria-label="FashionFlow — back to top"
             onClick={(e) => { e.preventDefault(); window.scrollTo(0, 0); }}
           >
-            <img src="/assets/no background logo.png" alt="FashionFlow Logo" className="logo-img" style={{ height: '60px', width: 'auto' }} />
+            <img src="/assets/no background logo.png" alt="FashionFlow Logo" className="logo-img" />
           </a>
         </div>
         <nav className="header-nav">
@@ -111,16 +128,40 @@ const Header = ({ onLoginClick }) => {
           </button>
           {auth && <NotificationBell variant="store" />}
           {auth ? (
-            <>
+            <div className="account-menu" ref={menuRef}>
               <button
                 className="login-link-btn account-btn"
-                onClick={() => { window.location.hash = `dashboard/${auth.user.dashboardKey}`; }}
-                title="Open my dashboard"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((o) => !o)}
               >
                 HI, {auth.user.name.split(' ')[0].toUpperCase()}
+                <svg className={`account-caret${menuOpen ? ' open' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
-              <button className="login-link-btn signout-btn" onClick={signOut}>SIGN OUT</button>
-            </>
+              {menuOpen && (
+                <div className="account-dropdown" role="menu">
+                  <div className="account-dropdown-head">
+                    <strong>{auth.user.name}</strong>
+                    <span>{auth.user.roleLabel}</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setMenuOpen(false); window.location.hash = `dashboard/${auth.user.dashboardKey}`; }}
+                  >
+                    MY DASHBOARD
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="account-dropdown-signout"
+                    onClick={() => { setMenuOpen(false); signOut(); }}
+                  >
+                    SIGN OUT
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <button className="login-link-btn" onClick={onLoginClick}>SIGN IN</button>
           )}
