@@ -12,7 +12,11 @@ const Header = ({ onLoginClick }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const menuRef = useRef(null);
+  // Header renders inside App (which re-renders on every hashchange), so
+  // reading the hash here highlights the current category on mobile.
+  const currentHash = window.location.hash.toLowerCase();
 
   // Search rides the same hash-routing as the category links:
   // #search/<term> → NewArrivals filters style names and shows all matches.
@@ -77,6 +81,19 @@ const Header = ({ onLoginClick }) => {
         </div>
       </div>
       <header className="header">
+        <button
+          type="button"
+          className="menu-btn"
+          aria-label={navOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={navOpen}
+          onClick={() => setNavOpen((o) => !o)}
+        >
+          {navOpen ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
+          )}
+        </button>
         <div className="header-logo">
           {/* this app sets scrollRestoration=manual, so the browser never
               performs the native "#" jump — scroll to the hero ourselves
@@ -97,6 +114,16 @@ const Header = ({ onLoginClick }) => {
             <li><a href="#outerwear">OUTERWEAR</a></li>
             <li><a href="#sale">SALE</a></li>
           </ul>
+        </nav>
+        {/* Mobile-only category menu (toggled by the hamburger; the desktop
+            nav stays in the header row). Clicking a link both navigates and
+            closes the menu — the category-jump lands on the section title. */}
+        <nav className={`mobile-nav${navOpen ? ' open' : ''}`}>
+          {[['#women', 'WOMEN'], ['#men', 'MEN'], ['#outerwear', 'OUTERWEAR'], ['#sale', 'SALE']].map(([href, label]) => (
+            <a key={href} href={href} className={currentHash === href ? 'active' : ''} onClick={() => setNavOpen(false)}>
+              {label}
+            </a>
+          ))}
         </nav>
         <div className="header-actions">
           {searchOpen && (
