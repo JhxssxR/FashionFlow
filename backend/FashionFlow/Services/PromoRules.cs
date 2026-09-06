@@ -21,6 +21,16 @@ public static class PromoRules
         return null;
     }
 
+    // The stated condition on the tin ("₱200 off orders ₱2,000+") becomes a
+    // real rule: below the minimum the code is rejected with the reason.
+    // Null return = fine.
+    public static string? CheckMinSpend(Promotion promo, decimal subtotal)
+    {
+        if (promo.MinSpend is decimal min && subtotal < min)
+            return $"{promo.Code} needs a minimum spend of ₱{min:N0} — this order is only ₱{subtotal:N0}.";
+        return null;
+    }
+
     // lineSubtotals / lineCategories / clearance run parallel per cart line;
     // customerTier may be null for walk-ins. The discount is computed against
     // the subtotal of the lines the promo applies to.

@@ -9,6 +9,9 @@ public class Promotion
     public string DiscountType { get; set; } = "Percent";
     public decimal DiscountValue { get; set; }
     public string AppliesTo { get; set; } = "All"; // All | category name | Clearance
+    // Minimum order subtotal for the code to apply (the "orders ₱2,000+" in
+    // FF200's description). Null or zero = no minimum.
+    public decimal? MinSpend { get; set; }
     public DateOnly ValidFrom { get; set; }
     public DateOnly ValidTo { get; set; }
     public int Uses { get; set; }

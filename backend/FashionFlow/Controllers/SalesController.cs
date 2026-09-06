@@ -203,6 +203,9 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
             var ineligible = PromoRules.CheckEligible(promo, DateTime.Now, customer?.Tier);
             if (ineligible is not null)
                 return Conflict(new { message = ineligible });
+            var belowMinimum = PromoRules.CheckMinSpend(promo, subtotal);
+            if (belowMinimum is not null)
+                return Conflict(new { message = belowMinimum });
 
             var lineSubtotals = lines.Select(l => products[l.ProductId].Price * l.Quantity).ToArray();
             var lineCategories = lines.Select(l => products[l.ProductId].Category).ToArray();

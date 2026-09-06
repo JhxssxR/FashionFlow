@@ -87,6 +87,9 @@ public class PaymentsController(
             var ineligible = PromoRules.CheckEligible(appliedPromo, DateTime.Now, customer.Tier);
             if (ineligible is not null)
                 return BadRequest(new { message = ineligible });
+            var belowMinimum = PromoRules.CheckMinSpend(appliedPromo, subtotal);
+            if (belowMinimum is not null)
+                return BadRequest(new { message = belowMinimum });
 
             var lineSubtotals = merged.Select(m => products[m.ProductId].Price * m.Quantity).ToArray();
             var lineCategories = merged.Select(m => products[m.ProductId].Category).ToArray();

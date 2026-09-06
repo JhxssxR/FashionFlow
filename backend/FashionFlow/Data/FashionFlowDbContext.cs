@@ -37,6 +37,7 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
         mb.Entity<Sale>().HasIndex(s => s.Date);
         mb.Entity<PurchaseOrder>().HasIndex(p => p.PONumber).IsUnique();
         mb.Entity<Promotion>().HasIndex(p => p.Code).IsUnique();
+        mb.Entity<Promotion>().Property(p => p.MinSpend).HasPrecision(18, 2);
         mb.Entity<AppSetting>().HasKey(a => a.Key);
         mb.Entity<Order>().HasIndex(o => o.OrderNumber).IsUnique();
         mb.Entity<Order>().HasIndex(o => o.CheckoutSessionId);

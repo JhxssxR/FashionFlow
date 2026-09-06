@@ -126,7 +126,7 @@ public static class DbSeed
         // ---------- Promotions (fresh campaigns — zero recorded uses) ----------
         db.Promotions.AddRange(
             new Promotion { Code = "SCHOOL15", Description = "15% off all bottoms", DiscountType = "Percent", DiscountValue = 15, AppliesTo = "Bottoms", ValidFrom = new DateOnly(2026, 8, 1), ValidTo = new DateOnly(2026, 9, 30), Uses = 0 },
-            new Promotion { Code = "FF200", Description = "₱200 off orders ₱2,000+", DiscountType = "Fixed", DiscountValue = 200, AppliesTo = "All", ValidFrom = new DateOnly(2026, 8, 15), ValidTo = new DateOnly(2026, 12, 31), Uses = 0 },
+            new Promotion { Code = "FF200", Description = "₱200 off orders ₱2,000+", DiscountType = "Fixed", DiscountValue = 200, AppliesTo = "All", MinSpend = 2000m, ValidFrom = new DateOnly(2026, 8, 15), ValidTo = new DateOnly(2026, 12, 31), Uses = 0 },
             new Promotion { Code = "CLEAR30", Description = "30% off clearance", DiscountType = "Percent", DiscountValue = 30, AppliesTo = "Clearance", ValidFrom = new DateOnly(2026, 9, 1), ValidTo = new DateOnly(2026, 10, 31), Uses = 0 },
             new Promotion { Code = "BER2026", Description = "₱500 off for loyalty Gold tier", DiscountType = "Fixed", DiscountValue = 500, AppliesTo = "Tier:Gold", ValidFrom = new DateOnly(2026, 9, 15), ValidTo = new DateOnly(2026, 12, 31), Uses = 0 }
         );

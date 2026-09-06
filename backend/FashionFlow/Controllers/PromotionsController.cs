@@ -102,6 +102,10 @@ public class PromotionsController(FashionFlowDbContext db) : ControllerBase
         if (ineligible is not null)
             return Ok(new { valid = false, discount = 0m, message = ineligible });
 
+        var belowMinimum = PromoRules.CheckMinSpend(promo, req.Subtotal);
+        if (belowMinimum is not null)
+            return Ok(new { valid = false, discount = 0m, message = belowMinimum });
+
         // Preview against the whole basket subtotal; per-line scoping is done
         // again precisely at charge time (SalesController).
         var categories = req.Categories ?? [];

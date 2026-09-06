@@ -40,20 +40,42 @@ const NewArrivals = () => {
     validity: `Until ${fmtDate(p.validTo)}`
   }));
 
-  const copyToClipboard = (code, e) => {
-    navigator.clipboard.writeText(code).then(() => {
-      const originalText = e.target.innerText;
-      e.target.innerText = 'COPIED';
-      e.target.style.backgroundColor = '#000';
-      e.target.style.color = '#fff';
-      setTimeout(() => {
-        e.target.innerText = originalText;
-        e.target.style.backgroundColor = '';
-        e.target.style.color = '';
-      }, 1500);
-    }).catch(err => {
-      console.error('Failed to copy: ', err);
-    });
+  const copyToClipboard = async (code, e) => {
+    // navigator.clipboard exists only in secure contexts (HTTPS / localhost) —
+    // the deployed site serves plain HTTP until its TLS certificate is active,
+    // so fall back to the classic hidden-textarea copy there.
+    const btn = e.currentTarget;
+    let copied = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+        copied = true;
+      } else {
+        const helper = document.createElement('textarea');
+        helper.value = code;
+        helper.setAttribute('readonly', '');
+        helper.style.position = 'fixed';
+        helper.style.top = '0';
+        helper.style.opacity = '0';
+        document.body.appendChild(helper);
+        helper.focus();
+        helper.select();
+        helper.setSelectionRange(0, code.length);
+        copied = document.execCommand('copy');
+        document.body.removeChild(helper);
+      }
+    } catch {
+      copied = false;
+    }
+    const originalText = btn.innerText;
+    btn.innerText = copied ? 'COPIED' : 'COPY FAILED';
+    btn.style.backgroundColor = copied ? '#000' : '#c0392b';
+    btn.style.color = '#fff';
+    setTimeout(() => {
+      btn.innerText = originalText;
+      btn.style.backgroundColor = '';
+      btn.style.color = '';
+    }, 1500);
   };
 
   useEffect(() => {
