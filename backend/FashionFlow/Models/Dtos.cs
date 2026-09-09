@@ -118,3 +118,10 @@ public record BroadcastRequest(
     string? Body,
     // Null = every active account; otherwise a single role name.
     string? Role);
+
+// ---------- Reports ----------
+public record CreateReportRequest(
+    [Required] string Title,
+    [Required] string Type);
+
+

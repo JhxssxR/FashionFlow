@@ -127,8 +127,9 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
         if (customerId is null)
             return Unauthorized(new { message = "This account is not linked to a customer profile." });
 
+        // Return in-store receipts (online orders are served by /api/orders/mine)
         var rows = await db.Sales.Include(s => s.Product)
-            .Where(s => s.CustomerId == customerId)
+            .Where(s => s.CustomerId == customerId && s.Channel != "Online")
             .ToListAsync();
 
         var receipts = rows.GroupBy(s => s.ReceiptNo)

@@ -1,4 +1,5 @@
 using FashionFlow.Data;
+using FashionFlow.Models;
 using FashionFlow.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -208,5 +209,55 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
             .Select(r => new { id = r.ReportId, r.Title, r.Type, date = r.Date, r.GeneratedBy })
             .ToListAsync();
         return Ok(rows);
+    }
+
+    // Generate and save a new report snapshot in the archive
+    [HttpPost]
+    [Authorize(Roles = "Admin,Accountant,InventoryManager,PurchasingOfficer")]
+    public async Task<IActionResult> CreateReport(CreateReportRequest req)
+    {
+        var validTypes = new[] { "Sales", "Inventory", "Financial", "Purchasing" };
+        var type = validTypes.FirstOrDefault(t => string.Equals(t, req.Type?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (type == null)
+            return BadRequest(new { message = "Report type must be Sales, Inventory, Financial, or Purchasing." });
+
+        if (string.IsNullOrWhiteSpace(req.Title))
+            return BadRequest(new { message = "Report title is required." });
+
+        var report = new Report
+        {
+            Title = req.Title.Trim(),
+            Type = type,
+            Date = DateTime.Now,
+            GeneratedBy = User.Email()
+        };
+
+        db.Reports.Add(report);
+        db.SystemLogs.Add(Audit.Log(User.Email(), $"Generated and archived {type} report: \"{report.Title}\"", "Reports"));
+        await db.SaveChangesAsync();
+
+        return StatusCode(201, new
+        {
+            id = report.ReportId,
+            title = report.Title,
+            type = report.Type,
+            date = report.Date,
+            generatedBy = report.GeneratedBy
+        });
+    }
+
+    // Delete an archived report from the system
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,Accountant")]
+    public async Task<IActionResult> DeleteReport(int id)
+    {
+        var report = await db.Reports.FindAsync(id);
+        if (report == null) return NotFound(new { message = "Report not found." });
+
+        db.Reports.Remove(report);
+        db.SystemLogs.Add(Audit.Log(User.Email(), $"Deleted archived report #{id}: \"{report.Title}\"", "Reports"));
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "Report deleted." });
     }
 }

@@ -125,24 +125,50 @@ public class PaymentsController(
         db.SystemLogs.Add(Audit.Log(User.Email(),
             $"Order {orderNumber} placed — {order.ItemsSummary} (₱{subtotal:N0}, {order.PaymentMethod})", "Sales"));
 
-        // Bell: admin and the sales floor see the order the moment it's placed.
+        // Bell: admin, inventory manager, and sales floor see the order the moment it's placed.
         var placedBody = $"{order.ItemsSummary} — ₱{order.Total:N0} ({order.PaymentMethod}), awaiting payment.";
         await Notifications.PushRoleAsync(db, "Admin",
-            $"New online order {orderNumber}", placedBody, "Order", "dashboard/admin");
+            $"New online order {orderNumber}", placedBody, "Order", "dashboard/admin/orders");
+        await Notifications.PushRoleAsync(db, "InventoryManager",
+            $"New online order {orderNumber}", placedBody, "Order", "dashboard/inventory/orders");
         await Notifications.PushRoleAsync(db, "SalesStaff",
-            $"New online order {orderNumber}", placedBody, "Order", "dashboard/sales");
+            $"New online order {orderNumber}", placedBody, "Order", "dashboard/sales/overview");
 
         await db.SaveChangesAsync();
 
-        // Cash on Delivery: no gateway involved — reserve stock, record the
-        // sale and loyalty points now; the courier collects the cash later.
+        // Cash on Delivery: no gateway involved — reserve stock immediately,
+        // but do not record payment received until courier delivers the package.
         if (methodKey == "cod")
         {
-            await using var codTx = await db.Database.BeginTransactionAsync();
-            var codError = await fulfillment.FulfillAsync(order, User.Email(), "Cash on Delivery");
-            await codTx.CommitAsync();
-            if (codError is not null)
-                return Conflict(new { message = codError, status = order.Status });
+            // Reserve stock and record movement
+            foreach (var (productId, qty) in merged)
+            {
+                var prod = products[productId];
+                prod.Stock -= qty;
+                var inv = prod.Inventories.FirstOrDefault();
+                if (inv is not null) inv.Quantity -= qty;
+
+                db.StockMovements.Add(new StockMovement
+                {
+                    ProductId = productId,
+                    Quantity = qty,
+                    Direction = "Out",
+                    Date = DateTime.Now,
+                    Reference = orderNumber
+                });
+            }
+
+            // Single-use promo/voucher (RWD-) burned on order placement
+            if (!string.IsNullOrEmpty(order.PromoCode) && order.PromoCode.StartsWith("RWD-"))
+            {
+                var voucher = await db.Promotions.FirstOrDefaultAsync(p => p.Code == order.PromoCode);
+                if (voucher is not null) voucher.IsActive = false;
+            }
+
+            order.Status = "Pending";
+            order.PaidAt = null;
+
+            await db.SaveChangesAsync();
             return StatusCode(201, new { orderNumber = orderNumber, cod = true });
         }
 
@@ -289,10 +315,10 @@ public class PaymentsController(
     // fulfilment; staff move the order the rest of the way.
     private static readonly string[] DeliveryPipeline = ["Paid", "Shipped", "Out for Delivery", "Delivered"];
 
-    // Staff view of every online order (delivery tracking on the Admin
-    // dashboard) — the staff-side counterpart of /orders/mine.
+    // Staff view of every online order (delivery tracking on Admin / Inventory Manager
+    // dashboards) — the staff-side counterpart of /orders/mine.
     [HttpGet("orders")]
-    [Authorize(Roles = "Admin,SalesStaff")]
+    [Authorize(Roles = "Admin,SalesStaff,InventoryManager")]
     public async Task<IActionResult> All([FromQuery] string? status)
     {
         var q = db.Orders.Include(o => o.Customer).AsQueryable();
@@ -313,36 +339,114 @@ public class PaymentsController(
         return Ok(rows);
     }
 
-    // Move a paid order along the delivery pipeline. Each step notifies the
-    // customer's bell, so tracking needs no page refresh on their side.
+    // Move an order along the delivery pipeline. For Online orders: Paid → Shipped → Out for Delivery → Delivered.
+    // For COD orders: Pending → Shipped → Out for Delivery → Delivered (payment received on delivery).
     [HttpPut("orders/{orderNumber}/status")]
-    [Authorize(Roles = "Admin,SalesStaff")]
+    [Authorize(Roles = "Admin,SalesStaff,InventoryManager")]
     public async Task<IActionResult> SetDeliveryStatus(string orderNumber, UpdateStatusRequest req)
     {
-        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+        var order = await db.Orders.Include(o => o.Items).ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
         if (order is null) return NotFound(new { message = "Order not found." });
-        if (!DeliveryPipeline.Contains(req.Status))
-            return BadRequest(new { message = $"Status must be one of: {string.Join(", ", DeliveryPipeline)}." });
-        if (order.Status == req.Status)
-            return BadRequest(new { message = $"Order is already {req.Status}." });
-        if (Array.IndexOf(DeliveryPipeline, req.Status) != Array.IndexOf(DeliveryPipeline, order.Status) + 1)
-            return Conflict(new { message = $"Cannot move from {order.Status} to {req.Status}. Follow Paid → Shipped → Out for Delivery → Delivered." });
+
+        var isCod = string.Equals(order.PaymentMethod, "Cash on Delivery", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(order.PaymentMethod, "cod", StringComparison.OrdinalIgnoreCase);
+
+        var allowedNext = isCod switch
+        {
+            true => order.Status switch
+            {
+                "Pending" or "Placed" or "Confirmed" or "Paid" => "Shipped",
+                "Shipped" => "Out for Delivery",
+                "Out for Delivery" => "Delivered",
+                _ => null
+            },
+            false => order.Status switch
+            {
+                "Paid" => "Shipped",
+                "Shipped" => "Out for Delivery",
+                "Out for Delivery" => "Delivered",
+                _ => null
+            }
+        };
+
+        if (allowedNext == null || allowedNext != req.Status)
+        {
+            var expectedFlow = isCod
+                ? "Pending → Shipped → Out for Delivery → Delivered"
+                : "Paid → Shipped → Out for Delivery → Delivered";
+            return Conflict(new { message = $"Cannot move order {order.OrderNumber} from {order.Status} to {req.Status}. Follow {expectedFlow}." });
+        }
 
         order.Status = req.Status;
+
+        // If Cash on Delivery reaches Delivered, the courier collected the payment — record Sale & loyalty now!
+        if (isCod && req.Status == "Delivered" && order.PaidAt == null)
+        {
+            order.PaidAt = DateTime.Now;
+
+            var customer = order.CustomerId is int cid ? await db.Customers.FindAsync(cid) : null;
+            var pointsEarned = customer is null ? 0 : LoyaltyRules.PointsFor(order.Total);
+
+            // Record Sale rows (stock was already reserved at checkout)
+            var itemCount = Math.Max(1, order.Items.Count);
+            foreach (var item in order.Items)
+            {
+                db.Sales.Add(new Sale
+                {
+                    ReceiptNo = order.OrderNumber,
+                    CustomerId = order.CustomerId,
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalAmount = item.UnitPrice * item.Quantity,
+                    Date = DateTime.Now,
+                    PaymentMethod = "Cash on Delivery",
+                    Channel = "Online",
+                    LoyaltyPointsEarned = pointsEarned / itemCount
+                });
+            }
+
+            if (customer is not null && pointsEarned > 0)
+            {
+                db.Loyalties.Add(new Loyalty
+                {
+                    CustomerId = customer.CustomerId,
+                    PointsEarned = pointsEarned,
+                    PointsRedeemed = 0,
+                    Date = DateTime.Now,
+                    Note = $"Earned from {order.OrderNumber} (COD collected)"
+                });
+                customer.LoyaltyPoints += pointsEarned;
+                customer.Tier = LoyaltyRules.TierFor(customer.LoyaltyPoints);
+            }
+
+            db.SystemLogs.Add(Audit.Log(User.Email(),
+                $"COD payment received on delivery for {order.OrderNumber} — ₱{order.Total:N0}" +
+                (customer is null ? "" : $" · {customer.Name} +{pointsEarned} pts"), "Sales"));
+        }
+
         db.SystemLogs.Add(Audit.Log(User.Email(), $"Order {order.OrderNumber} → {req.Status}", "Sales"));
 
         var (title, body) = req.Status switch
         {
             "Shipped" => ($"Order {order.OrderNumber} has shipped",
-                "Your package is on its way — out for delivery soon."),
+                isCod
+                    ? $"Your COD package is on its way. Please prepare ₱{order.Total:N0} cash for the courier."
+                    : "Your package is on its way — out for delivery soon."),
             "Out for Delivery" => ($"Order {order.OrderNumber} is out for delivery",
-                "The courier is bringing your package today. Keep your phone handy!"),
+                isCod
+                    ? $"The courier is bringing your package today. Please have ₱{order.Total:N0} ready for cash on delivery."
+                    : "The courier is bringing your package today. Keep your phone handy!"),
             _ => ($"Order {order.OrderNumber} was delivered",
-                "Your order has arrived. Enjoy your new pieces — and don't forget to redeem your points!")
+                isCod
+                    ? $"Your COD order has arrived and payment of ₱{order.Total:N0} was collected. Enjoy your items!"
+                    : "Your order has arrived. Enjoy your new pieces — and don't forget to redeem your points!")
         };
-        if (order.CustomerId is int cid)
+
+        if (order.CustomerId is int recipientCid)
         {
-            var recipient = await db.Users.FirstOrDefaultAsync(u => u.CustomerId == cid);
+            var recipient = await db.Users.FirstOrDefaultAsync(u => u.CustomerId == recipientCid);
             if (recipient is not null)
                 Notifications.Push(db, recipient.UserId, title, body, "Order", "dashboard/customer");
         }
