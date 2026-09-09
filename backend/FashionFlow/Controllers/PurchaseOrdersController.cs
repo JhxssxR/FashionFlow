@@ -78,11 +78,26 @@ public class PurchaseOrdersController(FashionFlowDbContext db) : ControllerBase
 
         // Bell: the supplier's portal account sees the new order to confirm.
         var supplierAccount = await db.Users.FirstOrDefaultAsync(u => u.SupplierId == po.SupplierId);
-        if (supplierAccount is not null)
-            Notifications.Push(db, supplierAccount.UserId,
-                $"New purchase order {po.PONumber}",
-                $"{product.Name} ×{po.Quantity} — ₱{po.Amount:N0}. Please review and confirm.",
-                "Purchasing", "dashboard/supplier");
+        if (supplierAccount is null)
+        {
+            // Auto-create a portal account so the notification and portal access work immediately.
+            supplierAccount = new Models.User
+            {
+                Name = supplier.Contact,
+                Email = supplier.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("suppl13r!@#", workFactor: 10),
+                Role = "Supplier",
+                DashboardKey = "supplier",
+                Status = "Active",
+                SupplierId = supplier.SupplierId
+            };
+            db.Users.Add(supplierAccount);
+            await db.SaveChangesAsync(); // flush so UserId is assigned
+        }
+        Notifications.Push(db, supplierAccount.UserId,
+            $"New purchase order {po.PONumber}",
+            $"{product.Name} ×{po.Quantity} — ₱{po.Amount:N0}. Please review and confirm.",
+            "Purchasing", "dashboard/supplier");
 
         await db.SaveChangesAsync();
 

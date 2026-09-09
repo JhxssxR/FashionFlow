@@ -53,6 +53,26 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
         db.Suppliers.Add(supplier);
         db.SystemLogs.Add(Audit.Log(User.Email(), $"Supplier onboarded: {supplier.Name}", "Purchasing"));
         await db.SaveChangesAsync();
+
+        // Auto-create a portal User account so the supplier can log in immediately.
+        var existing = await db.Users.AnyAsync(u =>
+            u.SupplierId == supplier.SupplierId ||
+            string.Equals(u.Email, supplier.Email, StringComparison.OrdinalIgnoreCase));
+        if (!existing)
+        {
+            db.Users.Add(new User
+            {
+                Name = supplier.Contact,
+                Email = supplier.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("suppl13r!@#", workFactor: 10),
+                Role = "Supplier",
+                DashboardKey = "supplier",
+                Status = "Active",
+                SupplierId = supplier.SupplierId
+            });
+            await db.SaveChangesAsync();
+        }
+
         return StatusCode(201, new { id = supplier.SupplierId, supplier.Name });
     }
 

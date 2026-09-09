@@ -260,4 +260,102 @@ public static class DbSeed
         if (db.ChangeTracker.HasChanges())
             await db.SaveChangesAsync();
     }
+
+    // Ensures non-delivered Cash on Delivery orders do not count towards sales/revenue
+    // until they are officially marked Delivered by staff/inventory manager.
+    public static async Task CleanupPendingCodOrdersAsync(FashionFlowDbContext db)
+    {
+        var nonDeliveredCod = await db.Orders
+            .Where(o => (o.PaymentMethod == "Cash on Delivery" || o.PaymentMethod == "COD") && o.Status != "Delivered")
+            .ToListAsync();
+
+        foreach (var o in nonDeliveredCod)
+        {
+            if (o.Status == "Paid")
+            {
+                o.Status = "Pending";
+                o.PaidAt = null;
+            }
+        }
+
+        var nonDeliveredNumbers = nonDeliveredCod.Select(o => o.OrderNumber).ToList();
+        var orphanSales = await db.Sales.Where(s => nonDeliveredNumbers.Contains(s.ReceiptNo)).ToListAsync();
+        if (orphanSales.Count > 0)
+        {
+            db.Sales.RemoveRange(orphanSales);
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // Ensures every onboarded supplier has a linked active user account to log into the Supplier Portal.
+    public static async Task EnsureSupplierAccountsAsync(FashionFlowDbContext db)
+    {
+        var suppliers = await db.Suppliers.ToListAsync();
+        var existingUsers = await db.Users.Where(u => u.Role == "Supplier").ToListAsync();
+
+        foreach (var s in suppliers)
+        {
+            var hasAccount = existingUsers.Any(u => u.SupplierId == s.SupplierId || string.Equals(u.Email, s.Email, StringComparison.OrdinalIgnoreCase));
+            if (!hasAccount)
+            {
+                db.Users.Add(new User
+                {
+                    Name = s.Contact,
+                    Email = s.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("suppl13r!@#", workFactor: 10),
+                    Role = "Supplier",
+                    DashboardKey = "supplier",
+                    Status = "Active",
+                    SupplierId = s.SupplierId
+                });
+            }
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // Backfill: if a PO was created before the supplier's User account existed,
+    // the notification was never pushed. This creates the missing notifications
+    // for any Pending POs that have no matching notification row.
+    public static async Task BackfillSupplierNotificationsAsync(FashionFlowDbContext db)
+    {
+        var pendingPos = await db.PurchaseOrders
+            .Include(p => p.Product)
+            .Include(p => p.Supplier)
+            .Where(p => p.Status == "Pending")
+            .ToListAsync();
+
+        foreach (var po in pendingPos)
+        {
+            var supplierUser = await db.Users.FirstOrDefaultAsync(u => u.SupplierId == po.SupplierId);
+            if (supplierUser is null) continue;
+
+            // Check if a notification already exists for this PO + user.
+            var exists = await db.Notifications.AnyAsync(n =>
+                n.UserId == supplierUser.UserId &&
+                n.Title.Contains(po.PONumber));
+            if (exists) continue;
+
+            db.Notifications.Add(new Notification
+            {
+                UserId = supplierUser.UserId,
+                Title = $"New purchase order {po.PONumber}",
+                Body = $"{po.Product!.Name} ×{po.Quantity} — ₱{po.Amount:N0}. Please review and confirm.",
+                Type = "Purchasing",
+                Link = "dashboard/supplier"
+            });
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+    }
 }

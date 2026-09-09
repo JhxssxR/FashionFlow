@@ -79,6 +79,9 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
     await DbSeed.SeedIfEmptyAsync(db);
     await DbSeed.BackfillVariantSiblingsAsync(db);
+    await DbSeed.CleanupPendingCodOrdersAsync(db);
+    await DbSeed.EnsureSupplierAccountsAsync(db);
+    await DbSeed.BackfillSupplierNotificationsAsync(db);
 }
 
 if (!app.Environment.IsDevelopment())
