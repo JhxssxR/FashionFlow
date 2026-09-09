@@ -4,9 +4,25 @@ import {
   Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
+
+const getNextDeliveryStep = (order) => {
+  if (!order) return null;
+  const isCod = order.paymentMethod?.toLowerCase().includes('cash on delivery') || order.paymentMethod?.toLowerCase() === 'cod';
+  if (isCod) {
+    if (order.status === 'Pending' || order.status === 'Placed' || order.status === 'Confirmed') return 'Shipped';
+    if (order.status === 'Shipped') return 'Out for Delivery';
+    if (order.status === 'Out for Delivery') return 'Delivered';
+    return null;
+  }
+  if (order.status === 'Paid') return 'Shipped';
+  if (order.status === 'Shipped') return 'Out for Delivery';
+  if (order.status === 'Out for Delivery') return 'Delivered';
+  return null;
+};
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 
@@ -100,8 +116,26 @@ const InventoryDashboard = ({ user }) => {
   const movements = useApi('/api/inventory/movements?limit=40', [tick]);
   const deliveries = useApi('/api/purchase-orders', [tick]);
   const lowStock = useApi('/api/inventory/low-stock', [tick]);
+  const onlineOrders = useApi('/api/orders', [tick]);
+  const [busyOrderId, setBusyOrderId] = useState('');
+  const [orderErr, setOrderErr] = useState('');
   const [adjustMsg, setAdjustMsg] = useState('');
   const bump = () => setTick((t) => t + 1);
+
+  const advanceOrder = async (row) => {
+    const next = getNextDeliveryStep(row);
+    if (!next) return;
+    setBusyOrderId(row.id);
+    setOrderErr('');
+    try {
+      await api(`/api/orders/${row.id}/status`, { method: 'PUT', body: { status: next } });
+      bump();
+    } catch (ex) {
+      setOrderErr(ex.message);
+    } finally {
+      setBusyOrderId('');
+    }
+  };
 
   const adjust = async (product) => {
     const input = window.prompt(`New on-hand quantity for “${product.name}” (currently ${product.stock}):`, product.stock);
@@ -188,6 +222,62 @@ const InventoryDashboard = ({ user }) => {
           );
         }
 
+        if (page === 'orders') {
+          const pendingCount = (onlineOrders.data || []).filter((o) => o.status === 'Pending' || o.status === 'Paid').length;
+          const inDeliveryCount = (onlineOrders.data || []).filter((o) => o.status === 'Shipped' || o.status === 'Out for Delivery').length;
+          return (
+            <>
+              <div className="stat-grid">
+                <StatCard label="AWAITING DISPATCH" value={num(pendingCount)} sub="Orders ready for verification & packing" tone="gold" />
+                <StatCard label="IN TRANSIT" value={num(inDeliveryCount)} sub="Shipped / Out for delivery" tone="purple" />
+                <StatCard label="TOTAL ORDERS" value={num(onlineOrders.data?.length)} sub="All storefront orders" tone="dark" />
+              </div>
+              <Panel title="Storefront online orders" subtitle="Verify stock, pack items, and dispatch orders: Paid/Pending → Shipped → Out for Delivery → Delivered">
+                <ErrorNote message={onlineOrders.error || orderErr} />
+                {onlineOrders.loading && !onlineOrders.data ? <Loading /> : (
+                  <DataTable
+                    keyField="id"
+                    emptyTitle="NO STOREFRONT ORDERS"
+                    emptyNote="Customer orders placed online appear here for stock verification and delivery fulfillment."
+                    columns={[
+                      { key: 'id', label: 'Order' },
+                      { key: 'date', label: 'Placed', width: 170, render: (r) => fmtDateTime(r.date) },
+                      { key: 'customer', label: 'Customer' },
+                      { key: 'items', label: 'Items' },
+                      { key: 'total', label: 'Total', render: (r) => peso(r.total) },
+                      { key: 'paymentMethod', label: 'Payment' },
+                      { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+                      {
+                        key: 'action',
+                        label: 'Fulfillment',
+                        render: (r) => {
+                          const next = getNextDeliveryStep(r);
+                          if (next) {
+                            const isCodDelivery = next === 'Delivered' && (r.paymentMethod?.toLowerCase().includes('cash on delivery') || r.paymentMethod?.toLowerCase() === 'cod');
+                            return (
+                              <button
+                                className="mini-btn"
+                                disabled={busyOrderId === r.id}
+                                onClick={() => advanceOrder(r)}
+                              >
+                                {busyOrderId === r.id ? 'SAVING…' : isCodDelivery ? 'MARK DELIVERED & COLLECTED' : `VERIFY & MARK ${next.toUpperCase()}`}
+                              </button>
+                            );
+                          }
+                          return r.status === 'Pending' && !r.paymentMethod?.toLowerCase().includes('cash on delivery')
+                            ? 'Awaiting payment'
+                            : (r.status === 'Delivered' ? 'Delivered ✓' : '—');
+                        }
+                      }
+                    ]}
+                    rows={onlineOrders.data || []}
+                  />
+                )}
+              </Panel>
+            </>
+          );
+        }
+
         if (page === 'deliveries') {
           return (
             <>
@@ -266,6 +356,7 @@ const InventoryDashboard = ({ user }) => {
                   rows={lowStock.data?.rows || []}
                 />
               </Panel>
+              <SavedReportsPanel role="inventory" defaultType="Inventory" />
             </>
           );
         }

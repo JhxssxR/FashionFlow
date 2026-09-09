@@ -66,6 +66,69 @@ const NotificationBell = ({ variant = 'dash' }) => {
 
   if (!signedIn) return null;
 
+  const getTargetLink = (n) => {
+    const auth = getAuth();
+    const role = auth?.user?.dashboardKey || (auth?.user?.role === 'Customer' ? 'customer' : 'admin');
+    const type = (n.type || '').toLowerCase();
+    const title = (n.title || '').toLowerCase();
+    const body = (n.body || '').toLowerCase();
+
+    // Check if notification already has an explicit sub-route (e.g. dashboard/admin/orders)
+    if (n.link) {
+      const clean = n.link.replace(/^#\/?/, '');
+      const segments = clean.split(/[/?#]/).filter(Boolean);
+      // If it has at least 3 parts e.g. dashboard/admin/orders, use it directly
+      if (segments.length >= 3) return clean;
+    }
+
+    // Resolve based on notification subject & current user's role
+    if (type === 'order' || title.includes('order') || body.includes('order') || title.includes('po ') || title.includes('purchase order')) {
+      if (role === 'admin') return 'dashboard/admin/orders';
+      if (role === 'inventory') return 'dashboard/inventory/orders';
+      if (role === 'customer') return 'dashboard/customer/orders';
+      if (role === 'sales') return 'dashboard/sales/overview';
+      if (role === 'purchasing') return 'dashboard/purchasing/orders';
+      if (role === 'supplier') return 'dashboard/supplier/orders';
+      if (role === 'accountant') return 'dashboard/accountant/receivables';
+    }
+
+    if (type === 'inventory' || title.includes('stock') || body.includes('stock') || title.includes('delivery')) {
+      if (role === 'inventory') {
+        if (title.includes('delivery') || title.includes('received')) return 'dashboard/inventory/deliveries';
+        return 'dashboard/inventory/products';
+      }
+      if (role === 'purchasing') return 'dashboard/purchasing/orders';
+      if (role === 'admin') return 'dashboard/admin/overview';
+    }
+
+    if (type === 'loyalty' || title.includes('point') || title.includes('reward') || title.includes('tier') || title.includes('voucher') || title.includes('promo')) {
+      if (role === 'customer') {
+        if (title.includes('reward')) return 'dashboard/customer/rewards';
+        if (title.includes('promo')) return 'dashboard/customer/promos';
+        return 'dashboard/customer/loyalty';
+      }
+    }
+
+    if (type === 'account' || title.includes('payable') || title.includes('receivable') || title.includes('finance')) {
+      if (role === 'accountant') return 'dashboard/accountant/receivables';
+      if (role === 'supplier') return 'dashboard/supplier/payments';
+    }
+
+    if (type === 'report' || title.includes('report') || title.includes('audit')) {
+      if (role === 'admin') return 'dashboard/admin/reports';
+      if (role === 'accountant') return 'dashboard/accountant/reports';
+      if (role === 'inventory') return 'dashboard/inventory/reports';
+      if (role === 'purchasing') return 'dashboard/purchasing/reports';
+    }
+
+    if (type === 'system' && (title.includes('user') || title.includes('staff') || title.includes('invited') || title.includes('role'))) {
+      if (role === 'admin') return 'dashboard/admin/users';
+    }
+
+    if (n.link) return n.link.replace(/^#\/?/, '');
+    return `dashboard/${role}`;
+  };
+
   const markRead = async (n) => {
     setOpen(false);
     if (!n.isRead) {
@@ -73,8 +136,10 @@ const NotificationBell = ({ variant = 'dash' }) => {
       setItems((list) => list.map((i) => (i.id === n.id ? { ...i, isRead: true } : i)));
       try { await api('/api/notifications/read', { method: 'PUT', body: { ids: [n.id] } }); } catch { /* best-effort */ }
     }
-    // Jump to the page the notification is about (hash routing handles it).
-    if (n.link && window.location.hash !== `#${n.link}`) window.location.hash = n.link;
+    const target = getTargetLink(n);
+    if (target) {
+      window.location.hash = target;
+    }
   };
 
   const markAll = async () => {

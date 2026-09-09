@@ -1,9 +1,9 @@
 import React from 'react';
 import { statusTone } from '../../utils';
 
-export function StatCard({ label, value, sub, tone = 'gold' }) {
+export function StatCard({ label, value, sub }) {
   return (
-    <div className={`stat-card stat-${tone}`}>
+    <div className="stat-card" style={{ borderTop: '1px solid #e7e7e4' }}>
       <span className="stat-label">{label}</span>
       <strong className="stat-value">{value}</strong>
       {sub && <span className="stat-sub">{sub}</span>}

@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
+import SavedReportsPanel from './SavedReportsPanel';
 import { useApi } from '../../api/client';
 import { downloadCsv } from '../../utils';
 import { peso, num, CHART_COLORS, fmtDate } from '../../utils';
@@ -135,6 +136,7 @@ const AccountantDashboard = ({ user }) => {
                   </>
                 )}
               </Panel>
+              <SavedReportsPanel role="accountant" defaultType="Financial" />
             </>
           );
         }

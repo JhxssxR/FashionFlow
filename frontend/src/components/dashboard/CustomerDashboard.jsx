@@ -104,19 +104,21 @@ const CustomerDashboard = ({ user }) => {
   const products = useApi('/api/products');
   const bump = () => setTick((t) => t + 1);
 
-  // Unified purchase history: POS/online receipts (Sales) + web orders
-  // (Orders, which fulfil into Sales once paid).
+  // Unified purchase history: in-store POS receipts (Sales) + web orders (Orders).
+  // Online orders (FF-xxxx) are authored and tracked in Orders table.
+  const onlineList = onlineOrders.data || [];
+  const onlineOrderIds = new Set(onlineList.map((o) => o.id));
+  const posSales = (orders.data || []).filter((o) => !o.id?.startsWith('FF-') && !onlineOrderIds.has(o.id));
   const orderRows = [
-    ...(orders.data || []).map((o) => ({ ...o, dateLabel: fmtDate(o.date), source: 'receipt' })),
-    ...(onlineOrders.data || []).map((o) => ({
+    ...posSales.map((o) => ({ ...o, dateLabel: fmtDate(o.date), source: 'receipt' })),
+    ...onlineList.map((o) => ({
       ...o,
       dateLabel: fmtDate(o.date),
-      status: o.status === 'Paid' ? 'Delivered' : o.status,
       source: 'online'
     }))
-  ].sort((a, b) => (a.dateLabel < b.dateLabel ? 1 : -1));
+  ].sort((a, b) => (new Date(b.date || b.dateLabel) - new Date(a.date || a.dateLabel)));
   const lifetime = orderRows
-    .filter((r) => r.status === 'Delivered')
+    .filter((r) => r.status === 'Delivered' || r.status === 'Completed')
     .reduce((s, r) => s + r.total, 0);
 
   const loyaltyPanel = (
@@ -126,12 +128,14 @@ const CustomerDashboard = ({ user }) => {
     </Panel>
   );
 
+  const isOrdersLoading = (orders.loading && !orders.data) || (onlineOrders.loading && !onlineOrders.data);
+
   const ordersPanel = (compact = false) => (
     <Panel title="Purchase history" subtitle="Every order, receipt and points earned" action={
       <a href="#" className="panel-link" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>SHOP THE STORE →</a>
     }>
-      <ErrorNote message={orders.error} />
-      {orders.loading && !orders.data ? <Loading /> : (
+      <ErrorNote message={orders.error || onlineOrders.error} />
+      {isOrdersLoading ? <Loading /> : (
         <DataTable
           keyField="id"
           emptyTitle="NO PURCHASES YET"

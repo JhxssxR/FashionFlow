@@ -25,6 +25,7 @@ const ROLE_CONFIG = {
     pages: [
       { id: 'overview', label: 'Stock Overview' },
       { id: 'products', label: 'Products & Variants' },
+      { id: 'orders', label: 'Storefront Orders' },
       { id: 'movements', label: 'Stock Movements' },
       { id: 'deliveries', label: 'Supplier Deliveries' },
       { id: 'reports', label: 'Inventory Reports' }
@@ -38,7 +39,8 @@ const ROLE_CONFIG = {
       { id: 'overview', label: 'Overview' },
       { id: 'orders', label: 'Purchase Orders' },
       { id: 'suppliers', label: 'Supplier Management' },
-      { id: 'tracking', label: 'Transaction Tracking' }
+      { id: 'tracking', label: 'Transaction Tracking' },
+      { id: 'reports', label: 'Purchasing Reports' }
     ],
     activePage: 'overview'
   },
@@ -89,11 +91,43 @@ const ROLE_CONFIG = {
   }
 };
 
+const getActivePageFromHash = (config, role) => {
+  const hash = window.location.hash || '';
+  const prefix = `#dashboard/${role}/`;
+  let pageId = null;
+  if (hash.startsWith(prefix)) {
+    pageId = hash.slice(prefix.length).split(/[/?#]/)[0];
+  } else {
+    const match = hash.match(/[?&]tab=([^&#]+)/);
+    if (match) pageId = match[1];
+  }
+  if (pageId && config.pages.some((p) => p.id === pageId)) {
+    return pageId;
+  }
+  return config.activePage;
+};
+
 const DashboardLayout = ({ role, user, children }) => {
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.admin;
-  const [activePage, setActivePage] = React.useState(config.activePage);
+  const [activePage, setActivePage] = React.useState(() => getActivePageFromHash(config, role));
   const [navOpen, setNavOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleHash = () => {
+      const target = getActivePageFromHash(config, role);
+      setActivePage(target);
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, [config, role]);
+
   const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
+
+  const setPage = (pageId) => {
+    window.location.hash = `dashboard/${role}/${pageId}`;
+    setActivePage(pageId);
+  };
 
   const goStore = (e) => {
     e.preventDefault();
@@ -120,7 +154,7 @@ const DashboardLayout = ({ role, user, children }) => {
             <a
               key={page.id}
               href="#"
-              onClick={(e) => { e.preventDefault(); setActivePage(page.id); setNavOpen(false); }}
+              onClick={(e) => { e.preventDefault(); setPage(page.id); setNavOpen(false); }}
               className={`dash-nav-item${page.id === activePage ? ' active' : ''}`}
             >
               {page.label}

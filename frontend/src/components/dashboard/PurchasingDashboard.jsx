@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
+import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate } from '../../utils';
 
@@ -283,6 +284,22 @@ const PurchasingDashboard = ({ user }) => {
                   />
                 </Panel>
               </div>
+            </>
+          );
+        }
+
+        if (page === 'reports') {
+          return (
+            <>
+              <div className="stat-grid">
+                <StatCard label="OPEN PO VALUE" value={peso(openSpend)} sub={`${rows.length} purchase orders on file`} />
+                <StatCard label="SPEND (14 DAYS)" value={peso(spend.data?.total)} sub="From issued purchase orders" tone="dark" />
+              </div>
+              <Panel title="Purchasing spend — last 14 days" subtitle="Outbound to suppliers, from issued POs">
+                <ErrorNote message={spend.error} />
+                {spend.loading ? <Loading /> : spendChart}
+              </Panel>
+              <SavedReportsPanel role="purchasing" defaultType="Purchasing" />
             </>
           );
         }

@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote, Pager } from './DashboardShared';
+import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime, downloadCsv } from '../../utils';
 
@@ -119,9 +120,22 @@ const AnnouncementForm = () => {
   );
 };
 
-// Delivery tracking: staff move paid orders down the pipeline; the customer's
+// Delivery tracking: staff move paid or COD orders down the pipeline; the customer's
 // bell is notified at every step (see PaymentsController.SetDeliveryStatus).
-const NEXT_DELIVERY_STEP = { Paid: 'Shipped', Shipped: 'Out for Delivery', 'Out for Delivery': 'Delivered' };
+const getNextDeliveryStep = (order) => {
+  if (!order) return null;
+  const isCod = order.paymentMethod?.toLowerCase().includes('cash on delivery') || order.paymentMethod?.toLowerCase() === 'cod';
+  if (isCod) {
+    if (order.status === 'Pending' || order.status === 'Placed' || order.status === 'Confirmed') return 'Shipped';
+    if (order.status === 'Shipped') return 'Out for Delivery';
+    if (order.status === 'Out for Delivery') return 'Delivered';
+    return null;
+  }
+  if (order.status === 'Paid') return 'Shipped';
+  if (order.status === 'Shipped') return 'Out for Delivery';
+  if (order.status === 'Out for Delivery') return 'Delivered';
+  return null;
+};
 
 const OnlineOrders = () => {
   const [tick, setTick] = useState(0);
@@ -130,7 +144,7 @@ const OnlineOrders = () => {
   const orders = useApi('/api/orders', [tick]);
 
   const advance = async (row) => {
-    const next = NEXT_DELIVERY_STEP[row.status];
+    const next = getNextDeliveryStep(row);
     if (!next) return;
     setBusyId(row.id);
     setErr('');
@@ -150,12 +164,12 @@ const OnlineOrders = () => {
         <StatCard label="ONLINE ORDERS" value={num(orders.data?.length)} sub="All storefront orders" />
         <StatCard
           label="IN DELIVERY"
-          value={num((orders.data || []).filter((o) => o.status === 'Paid' || o.status === 'Shipped' || o.status === 'Out for Delivery').length)}
-          sub="Paid orders not yet delivered"
+          value={num((orders.data || []).filter((o) => o.status === 'Paid' || o.status === 'Shipped' || o.status === 'Out for Delivery' || (o.status === 'Pending' && (o.paymentMethod?.toLowerCase().includes('cash on delivery') || o.paymentMethod?.toLowerCase() === 'cod'))).length)}
+          sub="Active orders not yet delivered"
           tone="purple"
         />
       </div>
-      <Panel title="Online orders" subtitle="Move paid orders along: Paid → Shipped → Out for Delivery → Delivered (the customer is notified at every step)">
+      <Panel title="Online orders" subtitle="Move orders along: Paid/Pending (COD) → Shipped → Out for Delivery → Delivered (COD payments are received upon delivery)">
         <ErrorNote message={orders.error || err} />
         {orders.loading && !orders.data ? <Loading /> : (
           <DataTable
@@ -173,15 +187,22 @@ const OnlineOrders = () => {
               {
                 key: 'next',
                 label: 'Delivery',
-                render: (r) => NEXT_DELIVERY_STEP[r.status] ? (
-                  <button
-                    className="mini-btn"
-                    disabled={busyId === r.id}
-                    onClick={() => advance(r)}
-                  >
-                    {busyId === r.id ? 'SAVING…' : `MARK ${NEXT_DELIVERY_STEP[r.status].toUpperCase()}`}
-                  </button>
-                ) : (r.status === 'Pending' ? 'Awaiting payment' : '—')
+                render: (r) => {
+                  const next = getNextDeliveryStep(r);
+                  if (next) {
+                    const isCodDelivery = next === 'Delivered' && (r.paymentMethod?.toLowerCase().includes('cash on delivery') || r.paymentMethod?.toLowerCase() === 'cod');
+                    return (
+                      <button
+                        className="mini-btn"
+                        disabled={busyId === r.id}
+                        onClick={() => advance(r)}
+                      >
+                        {busyId === r.id ? 'SAVING…' : isCodDelivery ? 'MARK DELIVERED & COLLECTED' : `MARK ${next.toUpperCase()}`}
+                      </button>
+                    );
+                  }
+                  return r.status === 'Pending' ? 'Awaiting online payment' : (r.status === 'Delivered' ? 'Completed' : '—');
+                }
               }
             ]}
             rows={orders.data || []}
@@ -247,11 +268,11 @@ const AdminDashboard = ({ user }) => {
   const byRole = useApi('/api/users/by-role');
   const [usersTick, setUsersTick] = useState(0);
   const [logsPage, setLogsPage] = useState(1);
+
   const usersQ = useApi('/api/users', [usersTick]);
   // 200 = the API's cap; the logs page pages through them 10 at a time.
   const logs = useApi('/api/logs?limit=200', [usersTick]);
   const lowStock = useApi('/api/inventory/low-stock', [usersTick]);
-  const reports = useApi('/api/reports', [usersTick]);
 
   const series = sales.data?.series || [];
   const totals = sales.data?.totals;
@@ -345,23 +366,8 @@ const AdminDashboard = ({ user }) => {
                   </>
                 )}
               </Panel>
-              <Panel title="Saved reports" subtitle="Generated and archived reports">
-                <ErrorNote message={reports.error} />
-                {reports.loading ? <Loading /> : (
-                  <DataTable
-                    keyField="id"
-                    emptyTitle="NO REPORTS GENERATED YET"
-                    emptyNote="Sales, inventory and financial reports will be archived here."
-                    columns={[
-                      { key: 'title', label: 'Title' },
-                      { key: 'type', label: 'Type' },
-                      { key: 'date', label: 'Generated', render: (r) => fmtDateTime(r.date) },
-                      { key: 'generatedBy', label: 'By' }
-                    ]}
-                    rows={reports.data || []}
-                  />
-                )}
-              </Panel>
+
+              <SavedReportsPanel role="admin" defaultType="Sales" />
             </>
           );
         }
