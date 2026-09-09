@@ -47,7 +47,7 @@ const socials = [
 
 const Footer = () => {
   return (
-    <footer className="footer reveal">
+    <footer className="footer">
       <div className="footer-inner">
         <div className="footer-top">
           <div className="footer-brand">

@@ -368,12 +368,12 @@ const SuccessView = ({ orderNumber, method }) => {
         <span className="checkout-check">✓</span>
         <h2 className="checkout-title">{firstName ? `Thank you, ${firstName}!` : 'Thank you!'}</h2>
         <p className="checkout-sub">
-          Order <strong>{orderNumber}</strong> is confirmed
-          {method && <> — paid by <strong>{methodLabel(method)}</strong></>}.
+          Order <strong>{orderNumber}</strong> is {isCod ? 'placed' : 'confirmed'}
+          {method && <> — {isCod ? <strong>Cash on Delivery</strong> : <>paid by <strong>{methodLabel(method)}</strong></>}</>}.
         </p>
         <p className="checkout-sub">
           {isCod
-            ? 'Please prepare your payment — the courier will collect the cash when your order arrives.'
+            ? 'Stock is reserved. Please prepare your payment — the courier will collect the cash upon delivery, and payment will be marked received once delivered.'
             : 'Payment received — stock is reserved and your loyalty points have been added.'}{' '}
           Track it in your dashboard's purchase history.
         </p>

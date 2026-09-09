@@ -34,7 +34,8 @@ function App() {
         // #login?mode=register deep-links straight to CREATE ACCOUNT
         setView('login')
       } else if (hash.startsWith('#dashboard/')) {
-        const role = hash.replace('#dashboard/', '')
+        const fullPath = hash.replace(/^#\/?dashboard\/?/, '')
+        const role = fullPath.split(/[/?#]/)[0]
         // Route guard: a dashboard is only reachable with a valid signed-in
         // user whose role matches the route (server-side RBAC also protects
         // every API call; this just avoids rendering the wrong shell).

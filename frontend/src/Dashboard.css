@@ -407,20 +407,14 @@
 
 .stat-card {
   background: #fff;
-  border: 1px solid #e7e7e4;
+  border: 1px solid #e7e7e4 !important;
+  border-top: 1px solid #e7e7e4 !important;
   border-radius: 14px;
   padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 3px solid var(--accent-color);
 }
-
-.stat-purple { border-top-color: #7b5eea; }
-.stat-dark { border-top-color: #0d0d0d; }
-.stat-green { border-top-color: #3f9e6c; }
-.stat-red { border-top-color: #c0564f; }
-.stat-plain { border-top-color: #d9d9d4; }
 
 .stat-label {
   font-family: var(--font-mono);

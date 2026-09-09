@@ -519,13 +519,14 @@
 .footer {
   background-color: #0d0d0d;
   color: #a3a3a3;
-  margin-top: 4rem;
+  margin-top: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .footer-inner {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 4rem 4rem 2rem;
+  padding: 3rem 4rem 2rem;
 }
 
 .footer-top {
