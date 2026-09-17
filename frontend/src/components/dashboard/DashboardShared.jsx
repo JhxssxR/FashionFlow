@@ -71,9 +71,102 @@ export function EmptyState({ title = 'NO RECORDS YET', note }) {
   );
 }
 
-// Shown while an API call is in flight; keeps panel layout stable.
-export function Loading({ label = 'LOADING…' }) {
-  return <div className="table-empty"><span className="table-empty-note">{label}</span></div>;
+// Shown while an API call is in flight — shimmer blocks instead of plain
+// text so panels keep their shape (perceived speed).
+export function Loading({ label = 'LOADING…', lines = 3 }) {
+  const widths = [92, 78, 86, 64];
+  return (
+    <div className="skeleton" role="status" aria-label={label}>
+      {Array.from({ length: Math.max(1, lines) }).map((_, i) => (
+        <span key={i} className="sk-line" style={{ width: `${widths[i % widths.length]}%` }} />
+      ))}
+    </div>
+  );
+}
+
+// Shimmer placeholders shaped like stat cards (for stat-grid overviews).
+export function SkeletonCards({ count = 4 }) {
+  return (
+    <div className="stat-grid" aria-hidden="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="sk-card">
+          <span className="sk-line" style={{ width: '55%' }} />
+          <span className="sk-line sk-big" style={{ width: '80%' }} />
+          <span className="sk-line" style={{ width: '70%' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Circular progress ring (SVG) — loyalty tier progress, gamified.
+export function ProgressRing({ pct = 0, size = 112, children }) {
+  const p = Math.max(0, Math.min(100, pct));
+  const r = (size - 12) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="progress-ring" style={{ width: size, height: size }}>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
+        <circle className="ring-bg" cx={size / 2} cy={size / 2} r={r} strokeWidth={10} />
+        <circle
+          className="ring-fg"
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          strokeWidth={10}
+          strokeDasharray={c}
+          strokeDashoffset={c - (p / 100) * c}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <div className="ring-center">{children}</div>
+    </div>
+  );
+}
+
+// Days-left chip for promo expiry ("ENDS IN 2D" urgency).
+export function CountdownChip({ validTo }) {
+  if (!validTo) return null;
+  const end = new Date(validTo);
+  if (isNaN(end.getTime())) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setHours(0, 0, 0, 0);
+  const days = Math.round((endDay - now) / 86400000);
+  if (days < 0) return <span className="countdown-chip expired">EXPIRED</span>;
+  if (days === 0) return <span className="countdown-chip urgent">ENDS TODAY</span>;
+  if (days === 1) return <span className="countdown-chip urgent">ENDS TOMORROW</span>;
+  if (days <= 7) return <span className="countdown-chip urgent">ENDS IN {days}D</span>;
+  return <span className="countdown-chip">ENDS IN {days}D</span>;
+}
+
+// Urgency banners for low stock — OUT / CRITICAL / LOW with one-tap action.
+export function StockAlertBanner({ items, threshold = 12, actionLabel, onAction }) {
+  if (!items || items.length === 0) return null;
+  const half = Math.max(1, Math.floor(threshold / 2));
+  return (
+    <div className="stock-banners" role="alert">
+      {items.slice(0, 3).map((p) => {
+        const sev = p.stock <= 0 ? 'out' : p.stock <= half ? 'critical' : 'low';
+        const label = sev === 'out' ? 'OUT OF STOCK' : sev === 'critical' ? 'CRITICAL' : 'LOW STOCK';
+        return (
+          <div key={p.id} className={`stock-banner ${sev}`}>
+            <div className="stock-banner-info">
+              <strong>{p.name}</strong>
+              <span>{p.variant} · {p.stock} left</span>
+            </div>
+            <span className={`stock-sev ${sev}`}>{label}</span>
+            {onAction && (
+              <button type="button" className="mini-btn" onClick={() => onAction(p)}>
+                {actionLabel || 'RESTOCK'}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // Inline error banner for failed API calls (Error Handling criterion).

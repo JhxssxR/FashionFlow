@@ -1408,3 +1408,372 @@
   color: #9a9a9a;
   padding: 48px 0;
 }
+
+/* ==========================================================================
+   UI upgrades — skeletons, progress ring, countdown chips, stock banners,
+   sticky POS bar, swipeable stat cards. All mobile responsive (see 640).
+   ========================================================================== */
+
+/* ---------- Skeleton loaders (shimmer) ---------- */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0;
+}
+.sk-line {
+  display: block;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #efefec 25%, #f8f8f6 50%, #efefec 75%);
+  background-size: 200% 100%;
+  animation: sk-shimmer 1.2s ease infinite;
+}
+.sk-line.sk-big {
+  height: 26px;
+  border-radius: 8px;
+}
+.sk-card {
+  background: #fff;
+  border: 1px solid #e7e7e4;
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@keyframes sk-shimmer {
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-line {
+    animation: none;
+  }
+}
+
+/* ---------- Loyalty progress ring ---------- */
+.loyalty-ringrow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.progress-ring {
+  position: relative;
+  flex-shrink: 0;
+}
+.progress-ring svg {
+  display: block;
+}
+.ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+}
+.ring-fg {
+  fill: none;
+  stroke: var(--accent-color);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease;
+}
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  text-align: center;
+  padding: 0 14px;
+}
+.ring-center strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.ring-center span {
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  color: #a3a3a3;
+}
+.loyalty-ringtext {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #cfcfcf;
+}
+
+/* ---------- Promo countdown chips ---------- */
+.countdown-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #e6f4ec;
+  color: #2f7d55;
+  margin-left: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.countdown-chip.urgent {
+  background: #fae7e5;
+  color: #b04a43;
+}
+.countdown-chip.expired {
+  background: #efefec;
+  color: #8a8a8a;
+}
+.filter-tag .countdown-chip {
+  margin: 6px 0 0;
+}
+
+/* ---------- Low-stock urgency banners ---------- */
+.stock-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.stock-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid;
+}
+.stock-banner.low {
+  background: #fff8ec;
+  border-color: #ecd9ac;
+}
+.stock-banner.critical,
+.stock-banner.out {
+  background: #fdf0ef;
+  border-color: #efc5c1;
+}
+.stock-banner-info {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.stock-banner-info strong {
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stock-banner-info span {
+  font-size: 0.74rem;
+  color: #777;
+}
+.stock-sev {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.stock-sev.low {
+  background: #f7e8c8;
+  color: #8a6d1f;
+}
+.stock-sev.critical,
+.stock-sev.out {
+  background: #c0392b;
+  color: #fff;
+}
+.stock-banner .mini-btn {
+  margin-left: auto;
+}
+
+/* ---------- Sticky POS bar (mobile: fixed bottom) ---------- */
+.pos-stickybar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  /* Inline total + CHARGE hide on phones — the fixed bar replaces them */
+  .pos-cart-panel .pos-total,
+  .pos-cart-panel .pos-charge-btn {
+    display: none;
+  }
+  /* Room for the fixed bar so it never covers the promo/payment fields */
+  .pos-cart-panel {
+    padding-bottom: 96px;
+  }
+  .pos-stickybar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    background: #0d0d0d;
+    color: #fff;
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+    z-index: 65;
+  }
+  .pos-stickybar-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .pos-stickybar-info span {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: #a3a3a3;
+  }
+  .pos-stickybar-info strong {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+  .pos-stickybar-btn {
+    background: var(--accent-color);
+    color: #0d0d0d;
+    min-height: 48px;
+    padding: 12px 22px;
+    flex-shrink: 0;
+  }
+  .pos-stickybar-btn:disabled {
+    opacity: 0.5;
+  }
+}
+
+/* ---------- Swipeable stat cards (phones: snap-scroll row) ---------- */
+@media (max-width: 640px) {
+  .stat-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px 8px;
+  }
+  .stat-grid::-webkit-scrollbar {
+    display: none;
+  }
+  .stat-grid .stat-card,
+  .stat-grid .sk-card {
+    min-width: 232px;
+    max-width: 232px;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+}
+@media (max-width: 860px) {
+  /* POS: 3 cramped columns -> 2 thumb-friendly columns */
+  .pos-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pos-product {
+    min-height: 92px;
+    justify-content: center;
+    padding: 16px 14px;
+  }
+  /* System Settings: 2-col form -> stacked */
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Dynamic viewport: phone browser chrome must not hide content */
+  .dash-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .dash-sidebar {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* Tables: fixed min-width so columns swipe sideways instead of crushing */
+  .table-scroll .data-table {
+    min-width: 620px;
+  }
+  .data-table th,
+  .data-table td {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  /* Panels: stack title + full-width action buttons */
+  .panel {
+    padding: 16px;
+  }
+  .panel-head {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .panel-action {
+    flex-basis: 100%;
+  }
+  .panel-action .mini-btn {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* Stat cards: tighter + values never overflow 360px screens */
+  .stat-card {
+    padding: 14px 16px;
+  }
+  .stat-value {
+    font-size: 1.35rem;
+    overflow-wrap: anywhere;
+  }
+
+  /* 44px minimum touch targets (Apple HIG) */
+  .mini-btn,
+  .pager-btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dash-nav-item {
+    padding: 13px 12px;
+  }
+  .dash-menu-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .pos-product {
+    min-height: 96px;
+  }
+
+  /* Topbar: keep title + bell, drop the avatar on tiny screens */
+  .dash-topbar-right .dash-avatar {
+    display: none;
+  }
+
+  /* POS customer/method row: side-by-side inputs -> stacked */
+  .pos-controls-row {
+    flex-direction: column;
+  }
+
+  /* iOS Safari auto-zooms inputs under 16px — lock to 16px on phones */
+  .dash-shell input,
+  .dash-shell select,
+  .dash-shell textarea {
+    font-size: 16px;
+  }
+}

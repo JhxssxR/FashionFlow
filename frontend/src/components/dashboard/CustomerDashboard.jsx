@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, SkeletonCards, ProgressRing, CountdownChip } from './DashboardShared';
 import { useApi, api } from '../../api/client';
 import { peso, num, fmtDate } from '../../utils';
 
@@ -19,12 +19,15 @@ const LoyaltyCard = ({ loyalty, onChanged }) => {
         </div>
         <span className="loyalty-brand">FASHIONFLOW REWARDS</span>
       </div>
-      <div className="loyalty-bar">
-        <span style={{ width: `${tierProgress}%` }} />
-      </div>
-      <div className="loyalty-meta">
-        <span>{tierProgress}% to {loyalty.nextTier}</span>
-        <span>{num(loyalty.pointsToNext)} points to go</span>
+      <div className="loyalty-ringrow">
+        <ProgressRing pct={tierProgress} size={104}>
+          <strong>{tierProgress}%</strong>
+          <span>TO {loyalty.nextTier}</span>
+        </ProgressRing>
+        <div className="loyalty-ringtext">
+          <span>{num(loyalty.pointsToNext)} points to {loyalty.nextTier}</span>
+          <span>Earn 1 point per ₱100 spent</span>
+        </div>
       </div>
       <ul className="perk-list">
         {(loyalty.perks || []).map((perk) => (
@@ -165,7 +168,7 @@ const CustomerDashboard = ({ user }) => {
           columns={[
             { key: 'code', label: 'Code' },
             { key: 'description', label: 'Offer' },
-            { key: 'validTo', label: 'Valid until', render: (r) => fmtDate(r.validTo) },
+            { key: 'validTo', label: 'Valid until', render: (r) => (<span>{fmtDate(r.validTo)}<CountdownChip validTo={r.validTo} /></span>) },
             { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
           ]}
           rows={(promos.data || []).filter((p) => !p.appliesTo.startsWith('Tier:') || p.appliesTo === `Tier:${loyalty.data?.tier}`)}
@@ -218,12 +221,14 @@ const CustomerDashboard = ({ user }) => {
         // overview — My Dashboard
         return (
           <>
+            {(loyalty.loading && !loyalty.data) ? <SkeletonCards count={4} /> : (
             <div className="stat-grid">
               <StatCard label="LOYALTY POINTS" value={num(loyalty.data?.points)} sub={`${num(loyalty.data?.pointsToNext)} more to ${loyalty.data?.nextTier || '—'}`} />
               <StatCard label="TOTAL ORDERS" value={num(orderRows.length)} sub="Receipts + online orders" tone="purple" />
               <StatCard label="LIFETIME SPEND" value={peso(lifetime)} sub="Across POS and online orders" tone="dark" />
               <StatCard label="TIER" value={loyalty.data?.tier || '—'} sub="Free shipping + early drops" tone="green" />
             </div>
+            )}
 
             <div className="panel-grid panel-grid-1-1">
               {loyaltyPanel}

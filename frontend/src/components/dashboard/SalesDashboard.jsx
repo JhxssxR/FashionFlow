@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, SkeletonCards, CountdownChip } from './DashboardShared';
 import { useApi, api } from '../../api/client';
 import { peso, peso2, num, CHART_COLORS, fmtTime, fmtDate } from '../../utils';
 
@@ -86,7 +86,7 @@ const PosTerminal = ({ products, customers, onCharged }) => {
           ))}
         </div>
       </Panel>
-      <Panel title="Cart" subtitle={customer ? `Serving ${customer.name} (${customer.tier})` : 'Walk-in customer'}>
+      <Panel title="Cart" subtitle={customer ? `Serving ${customer.name} (${customer.tier})` : 'Walk-in customer'} className="pos-cart-panel">
         {result ? (
           <div className="pos-receipt">
             <strong className="pos-receipt-title">SALE COMPLETED</strong>
@@ -141,9 +141,21 @@ const PosTerminal = ({ products, customers, onCharged }) => {
               <span>TOTAL</span>
               <strong>{peso2(subtotal)}</strong>
             </div>
-            <button className="mini-btn wide" onClick={charge} disabled={busy || cart.length === 0}>
+            <button className="mini-btn wide pos-charge-btn" onClick={charge} disabled={busy || cart.length === 0}>
               {busy ? 'PROCESSING…' : `CHARGE ${peso2(subtotal)}`}
             </button>
+            {/* Sticky bottom bar (phones): total + CHARGE pinned, no scrolling. */}
+            {cart.length > 0 && !result && (
+              <div className="pos-stickybar" aria-live="polite">
+                <div className="pos-stickybar-info">
+                  <span>{cart.reduce((s, l) => s + l.quantity, 0)} ITEMS</span>
+                  <strong>{peso2(subtotal)}</strong>
+                </div>
+                <button className="mini-btn pos-stickybar-btn" onClick={charge} disabled={busy}>
+                  {busy ? 'PROCESSING…' : 'CHARGE'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </Panel>
@@ -254,7 +266,7 @@ const SalesDashboard = ({ user }) => {
                     { key: 'code', label: 'Code' },
                     { key: 'description', label: 'Deal' },
                     { key: 'appliesTo', label: 'Applies to' },
-                    { key: 'validTo', label: 'Valid until', render: (r) => fmtDate(r.validTo) },
+                    { key: 'validTo', label: 'Valid until', render: (r) => (<span>{fmtDate(r.validTo)}<CountdownChip validTo={r.validTo} /></span>) },
                     { key: 'uses', label: 'Uses' },
                     { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
                   ]}
@@ -268,12 +280,14 @@ const SalesDashboard = ({ user }) => {
         if (page === 'summary') {
           return (
             <>
+              {today.loading && !today.data ? <SkeletonCards count={4} /> : (
               <div className="stat-grid">
                 <StatCard label="TODAY'S SALES" value={peso(data?.total)} sub={`${data?.vsYesterdayPct >= 0 ? '+' : ''}${data?.vsYesterdayPct ?? '—'}% vs yesterday`} />
                 <StatCard label="TRANSACTIONS" value={num(data?.transactions)} sub={`Average basket ${peso(data?.avgBasket)}`} tone="purple" />
                 <StatCard label="ITEMS SOLD" value={num(data?.itemsSold)} sub="Units across all receipts" tone="dark" />
                 <StatCard label="PAYMENT MIX" value={(data?.byPayment || [])[0]?.method || '—'} sub={`${peso((data?.byPayment || [])[0]?.amount)} top method today`} tone="green" />
               </div>
+              )}
               <Panel title="Payments by method — today" subtitle="End-of-day breakdown for the register">
                 {today.loading ? <Loading /> : (
                   <DataTable
@@ -309,12 +323,14 @@ const SalesDashboard = ({ user }) => {
         // overview — Today's Sales
         return (
           <>
+            {today.loading && !today.data ? <SkeletonCards count={4} /> : (
             <div className="stat-grid">
               <StatCard label="TODAY'S SALES" value={peso(data?.total)} sub={`${data?.vsYesterdayPct >= 0 ? '+' : ''}${data?.vsYesterdayPct ?? '—'}% vs yesterday`} />
               <StatCard label="TRANSACTIONS" value={num(data?.transactions)} sub={`Average basket ${peso(data?.avgBasket)}`} tone="purple" />
               <StatCard label="LOYALTY POINTS ISSUED" value={num(data?.loyaltyIssued)} sub="1 point per ₱100 spent" tone="green" />
               <StatCard label="ACTIVE PROMOTIONS" value={num(activePromos.length)} sub="Applied automatically at POS" tone="dark" />
             </div>
+            )}
 
             <Panel title="Sales by hour — today" subtitle="POS terminal performance, live from the Sales table">
               {today.loading ? <Loading /> : (

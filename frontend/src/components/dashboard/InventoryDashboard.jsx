@@ -4,7 +4,7 @@ import {
   Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, StockAlertBanner } from './DashboardShared';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
@@ -344,6 +344,12 @@ const InventoryDashboard = ({ user }) => {
                 )}
               </Panel>
               <Panel title="Critical stock alerts" subtitle="Reorder before these run out">
+                <StockAlertBanner
+                  items={lowStock.data?.rows}
+                  threshold={lowStock.data?.threshold}
+                  actionLabel="VIEW DELIVERIES"
+                  onAction={() => { window.location.hash = 'dashboard/inventory/deliveries'; }}
+                />
                 <DataTable
                   keyField="id"
                   emptyTitle="NO STOCK ALERTS"
@@ -395,6 +401,12 @@ const InventoryDashboard = ({ user }) => {
 
             <div className="panel-grid panel-grid-1-1">
               <Panel title="Critical stock alerts" subtitle="Reorder before these run out">
+                <StockAlertBanner
+                  items={lowStock.data?.rows}
+                  threshold={lowStock.data?.threshold}
+                  actionLabel="VIEW DELIVERIES"
+                  onAction={() => { window.location.hash = 'dashboard/inventory/deliveries'; }}
+                />
                 <DataTable
                   keyField="id"
                   emptyTitle="NO STOCK ALERTS"

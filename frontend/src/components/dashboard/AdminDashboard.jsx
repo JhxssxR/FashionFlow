@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote, Pager } from './DashboardShared';
+import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote, Pager, SkeletonCards, StockAlertBanner } from './DashboardShared';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime, downloadCsv } from '../../utils';
@@ -417,12 +417,14 @@ const AdminDashboard = ({ user }) => {
         // overview
         return (
           <>
+            {sales.loading && !sales.data ? <SkeletonCards count={4} /> : (
             <div className="stat-grid">
               <StatCard label="REVENUE (30 DAYS)" value={peso(totals?.revenue)} sub="Live from the Sales table" />
               <StatCard label="ORDERS (30 DAYS)" value={num(totals?.orders)} sub="Distinct receipts, POS + online" tone="purple" />
               <StatCard label="SYSTEM USERS" value={num(totalUsers)} sub="Staff accounts, customers & suppliers" tone="dark" />
               <StatCard label="LOW STOCK ALERTS" value={num(lowStock.data?.rows?.length)} sub={`Threshold: ${lowStock.data?.threshold ?? '—'} units`} tone="red" />
             </div>
+            )}
 
             <div className="panel-grid panel-grid-2-1">
               <Panel title="Revenue — last 30 days" subtitle="All channels: storefront, POS and online orders">
@@ -487,6 +489,8 @@ const AdminDashboard = ({ user }) => {
               <Panel title="Low stock alerts" subtitle="Flagged across modules from live inventory">
                 <ErrorNote message={lowStock.error} />
                 {lowStock.loading ? <Loading /> : (
+                  <>
+                  <StockAlertBanner items={lowStock.data?.rows} threshold={lowStock.data?.threshold} />
                   <DataTable
                     keyField="id"
                     emptyTitle="NO STOCK ALERTS"
@@ -498,6 +502,7 @@ const AdminDashboard = ({ user }) => {
                     ]}
                     rows={lowStock.data?.rows || []}
                   />
+                  </>
                 )}
               </Panel>
             </div>

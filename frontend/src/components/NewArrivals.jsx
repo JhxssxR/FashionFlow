@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApi } from '../api/client';
 import ProductModal from './ProductModal.jsx';
+import { CountdownChip } from './dashboard/DashboardShared.jsx';
 import { peso, fmtDate, parseVariant, sizeSort, swatchStyle } from '../utils';
 
 // Categories mirror the header nav (WOMEN / MEN / OUTERWEAR / SALE).
@@ -37,6 +38,7 @@ const NewArrivals = () => {
   const offers = (offersQ.data || []).slice(0, 3).map((p) => ({
     code: p.code,
     description: p.description,
+    validTo: p.validTo,
     validity: `Until ${fmtDate(p.validTo)}`
   }));
 
@@ -241,6 +243,7 @@ const NewArrivals = () => {
               <div className="filter-tag-title">{offer.code}</div>
               <div className="filter-tag-desc">{offer.description}</div>
               <div className="filter-tag-sub">{offer.validity}</div>
+              <div><CountdownChip validTo={offer.validTo} /></div>
               <button className="copy-btn" onClick={(e) => copyToClipboard(offer.code, e)}>
                 COPY CODE
               </button>

@@ -1338,6 +1338,7 @@
   .login-right {
     padding: 2rem 1.5rem;
     min-height: 100vh;
+    min-height: 100dvh;
     height: auto;
     position: static;
   }
@@ -2097,4 +2098,88 @@
   background: #cda858;
   border-color: #cda858;
   color: #fff;
+}
+
+/* ==========================================================================
+   Mobile responsiveness upgrade — storefront phones (modals, cart, graphs,
+   checkout, grids). Dashboard roles live in Dashboard.css.
+   ========================================================================== */
+.cart-drawer {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.product-modal {
+  max-height: 92vh;
+  max-height: 92dvh;
+}
+
+@media (max-width: 640px) {
+  /* iOS Safari auto-zooms inputs under 16px — lock to 16px on phones */
+  .app-container input,
+  .app-container select,
+  .app-container textarea,
+  .cart-drawer input,
+  .product-modal input,
+  .login-container input {
+    font-size: 16px;
+  }
+
+  /* 44px minimum touch targets (Apple HIG) */
+  .icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .login-submit-btn,
+  .checkout-btn,
+  .pay-option,
+  .auth-tab,
+  .mobile-nav-btn {
+    min-height: 44px;
+  }
+  .pay-option {
+    justify-content: center;
+  }
+
+  /* Checkout: tighter card on narrow screens */
+  .checkout-page {
+    padding: 28px 12px;
+  }
+  .checkout-card {
+    padding: 26px 18px;
+  }
+  .checkout-title {
+    font-size: 1.6rem;
+  }
+
+  /* Product modal: full-sheet on phones */
+  .product-modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .product-modal {
+    width: 100vw;
+    max-height: 94vh;
+    max-height: 94dvh;
+  }
+
+  /* Cart drawer: full-width on small phones */
+  .cart-drawer {
+    width: 100vw;
+  }
+
+  /* Shop grid stays 2-up (fashion standard) but breathes less */
+  .product-grid {
+    gap: 1rem;
+  }
+
+  /* Hero type that fits 360px */
+  .hero-title {
+    font-size: 2.4rem;
+  }
+
+  /* Graph + chart tooltips stay inside small panels */
+  .recharts-wrapper {
+    font-size: 11px;
+  }
 }
