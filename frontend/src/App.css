@@ -744,18 +744,33 @@
 
 @media (max-width: 768px) {
   .header {
-    padding: 1rem 1.1rem;
+    padding: 0.7rem 1.1rem;
     flex-wrap: wrap;
   }
   .menu-btn {
     display: flex;
-    margin-right: 0.8rem;
+    margin-right: 0;
+    width: 40px;
+    flex-shrink: 0;
+  }
+  /* Center the logo in the freed-up row: the ::after spacer balances the
+     hamburger's width so justify works out truly centered. */
+  .header-logo {
+    flex: 1;
+    justify-content: center;
+  }
+  .header::after {
+    content: '';
+    width: 40px;
+    flex-shrink: 0;
   }
   .logo-img {
-    height: 44px;
+    height: 60px;
+    max-width: 52vw;
+    object-fit: contain;
   }
   .header-actions {
-    gap: 1rem;
+    display: none;
   }
   .mobile-nav.open {
     display: flex;
@@ -764,6 +779,48 @@
     border-top: 1px solid var(--border-color);
     margin-top: 0.85rem;
     padding-top: 0.45rem;
+  }
+  .mobile-nav-actions {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.45rem;
+    padding-top: 0.45rem;
+  }
+  .mobile-nav-search input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    background: none;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    letter-spacing: 1.5px;
+    padding: 0.7rem 0.25rem;
+  }
+  .mobile-nav-search input::placeholder {
+    color: var(--text-primary);
+    opacity: 0.55;
+  }
+  .mobile-nav-iconrow {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .mobile-nav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    color: var(--text-primary);
+    padding: 0.7rem 0.25rem;
+  }
+  .mobile-nav-btn:hover {
+    opacity: 0.7;
   }
   .mobile-nav a {
     font-family: var(--font-mono);

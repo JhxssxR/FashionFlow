@@ -108,9 +108,6 @@ const Footer = () => {
           <div className="footer-payments" aria-label="Accepted payment methods">
             <span className="pay-chip pay-chip-text" title="Cash on Delivery">COD</span>
             <span className="pay-chip"><img src="/assets/payments/gcash.png" alt="GCash" /></span>
-            <span className="pay-chip"><img src="/assets/payments/maya.png" alt="Maya" /></span>
-            <span className="pay-chip"><img src="/assets/payments/bpi.png" alt="BPI" /></span>
-            <span className="pay-chip"><img src="/assets/payments/bdo.png" alt="BDO" /></span>
           </div>
           <div className="footer-legal">
             <a href="#privacy">Privacy</a>

@@ -22,12 +22,11 @@ public class PaymentsController(
     private string PublicBaseUrl => config["App:PublicBaseUrl"] ?? $"{Request.Scheme}://{Request.Host.Value}";
 
     // Maps the storefront's payment choice to (display name, PayMongo filter).
+    // Store policy: GCash and Cash on Delivery only.
     private static readonly Dictionary<string, (string Label, string[] Types)> PaymentMethods =
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["gcash"] = ("GCash", ["gcash"]),
-            ["maya"] = ("Maya", ["maya"]),
-            ["card"] = ("Card", ["card"]),
             ["cod"] = ("Cash on Delivery", [])
         };
 
@@ -39,12 +38,13 @@ public class PaymentsController(
     [Authorize(Roles = "Customer,Admin")]
     public async Task<IActionResult> Checkout(CheckoutRequest req)
     {
-        var methodKey = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "online" : req.PaymentMethod.Trim().ToLowerInvariant();
+        var methodKey = string.IsNullOrWhiteSpace(req.PaymentMethod) ? "gcash" : req.PaymentMethod.Trim().ToLowerInvariant();
         if (methodKey == "cashondelivery") methodKey = "cod";
-        // "online"/omitted → no filter, the hosted page offers every method.
-        if (methodKey != "online" && !PaymentMethods.ContainsKey(methodKey))
-            return BadRequest(new { message = "Unknown payment method." });
-        (string Label, string[] Types)? chosen = methodKey == "online" ? null : PaymentMethods[methodKey];
+        // Store policy: GCash and Cash on Delivery only — anything else
+        // (maya, card, online) is rejected, not silently offered.
+        if (!PaymentMethods.ContainsKey(methodKey))
+            return BadRequest(new { message = "We currently accept GCash and Cash on Delivery only." });
+        var chosen = PaymentMethods[methodKey];
 
         var customerId = User.CustomerId();
         if (customerId is null)
@@ -113,7 +113,7 @@ public class PaymentsController(
             PromoCode = appliedPromo?.Code,
             Total = subtotal - discount,
             Status = "Pending",
-            PaymentMethod = chosen?.Label ?? "Online",
+            PaymentMethod = chosen.Label,
             CreatedAt = DateTime.Now
         };
         foreach (var (productId, qty) in merged)
@@ -189,7 +189,7 @@ public class PaymentsController(
                     order, lineItems,
                     $"{PublicBaseUrl}/#checkout/success/{orderNumber}",
                     $"{PublicBaseUrl}/#checkout/cancel/{orderNumber}",
-                    chosen?.Types);
+                    chosen.Types);
                 order.CheckoutSessionId = sessionId;
                 await db.SaveChangesAsync();
                 return StatusCode(201, new { orderNumber = orderNumber, checkoutUrl = checkoutUrl, mock = false });
@@ -208,9 +208,7 @@ public class PaymentsController(
             return StatusCode(201, new
             {
                 orderNumber = orderNumber,
-                checkoutUrl = methodKey == "online"
-                    ? $"{PublicBaseUrl}/#checkout/mock-pay/{orderNumber}"
-                    : $"{PublicBaseUrl}/#checkout/mock-pay/{orderNumber}/{methodKey}",
+                checkoutUrl = $"{PublicBaseUrl}/#checkout/mock-pay/{orderNumber}/{methodKey}",
                 mock = true
             });
         }

@@ -26,7 +26,13 @@ const Header = ({ onLoginClick }) => {
     if (!term) return;
     setSearchOpen(false);
     setQuery('');
+    setNavOpen(false);
     window.location.hash = `search/${encodeURIComponent(term)}`;
+  };
+
+  const openCart = () => {
+    setNavOpen(false);
+    cart.setOpen(true);
   };
 
   const signOut = () => {
@@ -124,6 +130,50 @@ const Header = ({ onLoginClick }) => {
               {label}
             </a>
           ))}
+          {/* Search / cart / account live inside the hamburger on mobile —
+              the header row keeps only the hamburger + logo. */}
+          <div className="mobile-nav-actions">
+            <form className="mobile-nav-search" onSubmit={submitSearch}>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="SEARCH PIECES…"
+                aria-label="Search products"
+              />
+            </form>
+            <div className="mobile-nav-iconrow">
+              {auth && <NotificationBell variant="store" />}
+              <button type="button" className="mobile-nav-btn" onClick={openCart}>
+                CART{cart.count > 0 ? ` (${cart.count})` : ''}
+              </button>
+            </div>
+            {auth ? (
+              <>
+                <button
+                  type="button"
+                  className="mobile-nav-btn"
+                  onClick={() => { setNavOpen(false); window.location.hash = `dashboard/${auth.user.dashboardKey}`; }}
+                >
+                  MY DASHBOARD
+                </button>
+                <button
+                  type="button"
+                  className="mobile-nav-btn"
+                  onClick={() => { setNavOpen(false); signOut(); }}
+                >
+                  SIGN OUT
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="mobile-nav-btn"
+                onClick={() => { setNavOpen(false); onLoginClick(); }}
+              >
+                SIGN IN
+              </button>
+            )}
+          </div>
         </nav>
         <div className="header-actions">
           {searchOpen && (

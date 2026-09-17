@@ -35,6 +35,13 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Kill sideways scroll from off-screen reveal animations
+     (.reveal-left/-right sit ±40px out until observed) and the
+     max-content marquee track — otherwise the page shifts and
+     leaves a white gutter on mobile. `clip` keeps position:sticky
+     working; `hidden` is the fallback for older browsers. */
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 a {

@@ -107,13 +107,11 @@ const AuthPanel = ({ onAuthed }) => {
   );
 };
 
-// Payment choices offered at checkout. gcash/maya/card go through the
-// PayMongo hosted page (filtered to the chosen wallet); cod skips the
-// gateway and is paid to the courier.
+// Payment choices offered at checkout (store policy: GCash + COD only).
+// gcash goes through the PayMongo hosted page; cod skips the gateway and
+// is paid to the courier.
 const paymentOptions = [
   { key: 'gcash', label: 'GCASH', desc: 'Pay with GCash via PayMongo' },
-  { key: 'maya', label: 'MAYA', desc: 'Pay with Maya via PayMongo' },
-  { key: 'card', label: 'CARD', desc: 'Credit or debit card via PayMongo' },
   { key: 'cod', label: 'CASH ON DELIVERY', desc: 'Pay cash when your order arrives' }
 ];
 
@@ -125,7 +123,7 @@ const OrderForm = () => {
   const auth = getAuth();
   const products = useApi('/api/products');
   const [address, setAddress] = useState('');
-  const [method, setMethod] = useState('');
+  const [method, setMethod] = useState('gcash');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [promoInput, setPromoInput] = useState('');
