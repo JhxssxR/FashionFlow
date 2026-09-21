@@ -1199,7 +1199,10 @@
   }
   .dash-mobile-brand img {
     height: 32px;
-    filter: brightness(0) invert(1);
+    /* No invert filter here: the topbar is white, so the dark logo shows
+       as-is. (The invert belongs only to .dash-brand img on the black
+       sidebar — copied here it rendered an invisible white logo that
+       silently ate 100px of header space and threw off centering.) */
   }
   .dash-topbar {
     padding: 14px 16px;
@@ -1660,6 +1663,10 @@
 /* ---------- Swipeable stat cards (phones: snap-scroll row) ---------- */
 /* Centered topbar title on mobile (all roles share DashboardLayout). */
 @media (max-width: 860px) {
+  /* No brand logo on mobile: hamburger left, bell right, title centered. */
+  .dash-mobile-brand {
+    display: none;
+  }
   /* Title takes the middle and centers — hamburger left, bell right. */
   .dash-topbar > div:not(.dash-topbar-right) {
     flex: 1;
