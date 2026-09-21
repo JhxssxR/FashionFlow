@@ -1519,12 +1519,15 @@
   top: 0;
   right: 0;
   width: min(420px, 92vw);
+  max-width: 100vw;
   height: 100vh;
   background: #fff;
   z-index: 91;
   display: flex;
   flex-direction: column;
   box-shadow: -18px 0 50px rgba(0, 0, 0, 0.18);
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .cart-drawer-head {
@@ -1574,6 +1577,7 @@
   align-items: flex-start;
   border-bottom: 1px dashed #e7e7e4;
   padding-bottom: 14px;
+  min-width: 0;
 }
 
 .cart-item img {
@@ -1581,14 +1585,17 @@
   height: 80px;
   object-fit: cover;
   border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .cart-item-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .cart-item-info span {
@@ -1623,6 +1630,15 @@
   align-items: flex-end;
   gap: 6px;
   font-size: 13px;
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 38%;
+  text-align: right;
+}
+
+.cart-item-side strong {
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .cart-remove {
@@ -1637,13 +1653,22 @@
 .cart-drawer-foot {
   border-top: 1px solid #ececec;
   padding: 16px 22px 22px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .cart-subtotal {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   font-size: 14px;
   margin-bottom: 6px;
+  min-width: 0;
+}
+
+.cart-subtotal strong {
+  white-space: nowrap;
 }
 
 .cart-note {
@@ -2166,6 +2191,17 @@
   /* Cart drawer: full-width on small phones */
   .cart-drawer {
     width: 100vw;
+    width: 100dvw;
+    max-width: 100vw;
+    max-width: 100dvw;
+    right: 0;
+    left: auto;
+  }
+  .cart-drawer-head,
+  .cart-items,
+  .cart-drawer-foot {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   /* Shop grid stays 2-up (fashion standard) but breathes less */
