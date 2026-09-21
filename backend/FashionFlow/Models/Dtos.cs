@@ -10,7 +10,13 @@ public record LoginRequest(
 public record RegisterRequest(
     [Required] string Name,
     [Required, EmailAddress] string Email,
-    [Required, MinLength(6)] string Password);
+    [Required, MinLength(6)] string Password,
+    // Optional delivery address (also editable at checkout every order).
+    string? Address,
+    string? Barangay,
+    string? City,
+    string? Province,
+    string? ZipCode);
 
 // ---------- POS ----------
 public record SaleItemRequest(

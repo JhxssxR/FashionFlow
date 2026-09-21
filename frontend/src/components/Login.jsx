@@ -16,6 +16,12 @@ const Login = ({ onBack }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Optional delivery address — also editable at checkout every order.
+  const [street, setStreet] = useState('');
+  const [barangay, setBarangay] = useState('');
+  const [city, setCity] = useState('');
+  const [province, setProvince] = useState('');
+  const [zip, setZip] = useState('');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -55,7 +61,17 @@ const Login = ({ onBack }) => {
     try {
       const res = mode === 'signin'
         ? await api('/api/auth/login', { method: 'POST', body: { email, password } })
-        : await api('/api/auth/register', { method: 'POST', body: { name, email, password } });
+        : await api('/api/auth/register', {
+          method: 'POST',
+          body: {
+            name, email, password,
+            address: street.trim(),
+            barangay: barangay.trim(),
+            city: city.trim(),
+            province: province.trim(),
+            zipCode: zip.trim()
+          }
+        });
       saveAuth({ token: res.token, user: res.user });
       window.location.hash = `dashboard/${res.user.dashboardKey}`;
     } catch (err) {
@@ -133,19 +149,75 @@ const Login = ({ onBack }) => {
 
           <form onSubmit={handleSubmit} className="login-form" noValidate>
             {mode === 'register' && (
-              <div className="form-group">
-                <label htmlFor="reg-name">FULL NAME</label>
-                <input
-                  type="text"
-                  id="reg-name"
-                  placeholder="Juan Dela Cruz"
-                  value={name}
-                  onChange={(e) => { setName(e.target.value); clearFieldError('name'); setError(''); }}
-                  aria-invalid={fieldErrors.name ? true : undefined}
-                  className={fieldErrors.name ? 'input-error' : undefined}
-                />
-                {fieldErrors.name && <p className="field-error" role="alert">{fieldErrors.name}</p>}
-              </div>
+              <>
+                <div className="form-group">
+                  <label htmlFor="reg-name">FULL NAME</label>
+                  <input
+                    type="text"
+                    id="reg-name"
+                    placeholder="Juan Dela Cruz"
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); clearFieldError('name'); setError(''); }}
+                    aria-invalid={fieldErrors.name ? true : undefined}
+                    className={fieldErrors.name ? 'input-error' : undefined}
+                  />
+                  {fieldErrors.name && <p className="field-error" role="alert">{fieldErrors.name}</p>}
+                </div>
+                <div className="form-group">
+                  <label htmlFor="reg-address">STREET ADDRESS <span className="optional-tag">(OPTIONAL)</span></label>
+                  <input
+                    type="text"
+                    id="reg-address"
+                    placeholder="House no., street, subdivision"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                  />
+                </div>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label htmlFor="reg-barangay">BARANGAY</label>
+                    <input
+                      type="text"
+                      id="reg-barangay"
+                      placeholder="Barangay"
+                      value={barangay}
+                      onChange={(e) => setBarangay(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="reg-city">CITY</label>
+                    <input
+                      type="text"
+                      id="reg-city"
+                      placeholder="City / Municipality"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label htmlFor="reg-province">PROVINCE</label>
+                    <input
+                      type="text"
+                      id="reg-province"
+                      placeholder="Province"
+                      value={province}
+                      onChange={(e) => setProvince(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="reg-zip">ZIP CODE</label>
+                    <input
+                      type="text"
+                      id="reg-zip"
+                      placeholder="e.g. 8000"
+                      value={zip}
+                      onChange={(e) => setZip(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="form-group">

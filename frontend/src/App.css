@@ -1122,6 +1122,8 @@
   color: #777;
   cursor: pointer;
   transition: color 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .back-store-btn:hover {
@@ -1342,6 +1344,16 @@
     height: auto;
     position: static;
   }
+  .login-nav {
+    padding: 1rem 1.1rem;
+  }
+  .login-nav-logo {
+    height: 36px;
+  }
+  .back-store-btn {
+    font-size: 0.62rem;
+    letter-spacing: 1px;
+  }
   .login-form-wrapper {
     margin: 3rem auto;
   }
@@ -1520,7 +1532,11 @@
   right: 0;
   width: min(420px, 92vw);
   max-width: 100vw;
+  /* lvh (largest viewport): the drawer always covers the full screen even
+     while the mobile URL bar shows/hides — dvh would shrink with it and
+     leave a gap at the bottom. */
   height: 100vh;
+  height: 100lvh;
   background: #fff;
   z-index: 91;
   display: flex;
@@ -1555,6 +1571,9 @@
 
 .cart-empty {
   margin: auto;
+  max-width: 100%;
+  width: 100%;
+  padding: 0 24px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -2031,6 +2050,11 @@
 }
 
 /* Payment method picker */
+.field-hint {
+  font-size: 0.72rem;
+  color: #2e6b4a;
+  margin-top: 6px;
+}
 .pay-options {
   display: flex;
   flex-direction: column;
@@ -2121,6 +2145,27 @@
   background: #0d0d0d;
   border-color: #0d0d0d;
   color: #fff;
+}
+
+/* Create-account address fields: two-up rows, stack on small phones */
+.form-row-2 {
+  display: flex;
+  gap: 10px;
+}
+.form-row-2 .form-group {
+  flex: 1;
+  min-width: 0;
+}
+.optional-tag {
+  font-weight: 400;
+  opacity: 0.55;
+  letter-spacing: 0.08em;
+}
+@media (max-width: 480px) {
+  .form-row-2 {
+    flex-direction: column;
+    gap: 0;
+  }
 }
 
 .checkout-form .auth-tab.active {
@@ -2234,9 +2279,9 @@
   }
   .cart-item-side {
     flex: 1 1 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     min-width: 0;
     max-width: none;
   }

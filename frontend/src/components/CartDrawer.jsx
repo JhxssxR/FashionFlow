@@ -1,10 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useCart } from '../context/CartContext.jsx';
 import { peso, peso2 } from '../utils';
 
 // Slide-over basket. CHECKOUT hands over to the #checkout page.
 const CartDrawer = () => {
   const cart = useCart();
+
+  // Lock background scroll while open (proper modal behavior) — the page
+  // behind must not move, only the item list inside the drawer scrolls.
+  useEffect(() => {
+    if (!cart.open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [cart.open]);
+
   if (!cart.open) return null;
 
   return (

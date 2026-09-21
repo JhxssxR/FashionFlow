@@ -10,7 +10,15 @@ namespace FashionFlow.Controllers;
 
 public static class AuthPayload
 {
-    public static object For(User u) => new
+    public static string CombinedAddress(Customer? c)
+    {
+        if (c is null) return "";
+        var parts = new[] { c.Address, c.Barangay, c.City, c.Province, c.ZipCode }
+            .Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim());
+        return string.Join(", ", parts);
+    }
+
+    public static object For(User u, Customer? c = null) => new
     {
         userId = u.UserId,
         name = u.Name,
@@ -20,7 +28,18 @@ public static class AuthPayload
         dashboardKey = u.DashboardKey,
         customerId = u.CustomerId,
         supplierId = u.SupplierId,
-        initials = ClaimsExtensions.Initials(u.Name)
+        initials = ClaimsExtensions.Initials(u.Name),
+        // Saved delivery address (null when none) — the storefront
+        // checkout prefills its shipping field from `combined`.
+        address = c is null ? null : new
+        {
+            street = c.Address,
+            barangay = c.Barangay,
+            city = c.City,
+            province = c.Province,
+            zip = c.ZipCode,
+            combined = CombinedAddress(c)
+        }
     };
 }
 
@@ -51,7 +70,10 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
         db.SystemLogs.Add(Audit.Log(user.Email, $"Signed in ({Roles.RoleLabel(user.Role)})", "Auth"));
         await db.SaveChangesAsync();
 
-        return Ok(new { token, expiresAt, user = AuthPayload.For(user) });
+        Customer? profile = user.CustomerId is int cid
+            ? await db.Customers.FindAsync(cid)
+            : null;
+        return Ok(new { token, expiresAt, user = AuthPayload.For(user, profile) });
     }
 
     [HttpGet("me")]
@@ -59,7 +81,11 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
     public async Task<IActionResult> Me()
     {
         var user = await db.Users.FindAsync(User.UserId());
-        return user is null ? Unauthorized(new { message = "Unknown account." }) : Ok(AuthPayload.For(user));
+        if (user is null) return Unauthorized(new { message = "Unknown account." });
+        Customer? profile = user.CustomerId is int cid
+            ? await db.Customers.FindAsync(cid)
+            : null;
+        return Ok(AuthPayload.For(user, profile));
     }
 
     // Storefront self-registration — always creates a Customer account linked
@@ -83,10 +109,24 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
                 Name = name,
                 Email = email,
                 Tier = "Bronze",
-                JoinedDate = DateOnly.FromDateTime(DateTime.Today)
+                JoinedDate = DateOnly.FromDateTime(DateTime.Today),
+                Address = req.Address?.Trim() ?? "",
+                Barangay = req.Barangay?.Trim() ?? "",
+                City = req.City?.Trim() ?? "",
+                Province = req.Province?.Trim() ?? "",
+                ZipCode = req.ZipCode?.Trim() ?? ""
             };
             db.Customers.Add(customer);
             await db.SaveChangesAsync(); // need the CustomerId for the user link
+        }
+        else
+        {
+            // Staff-created profile: fill in address blanks from signup.
+            if (!string.IsNullOrWhiteSpace(req.Address)) customer.Address = req.Address.Trim();
+            if (!string.IsNullOrWhiteSpace(req.Barangay)) customer.Barangay = req.Barangay.Trim();
+            if (!string.IsNullOrWhiteSpace(req.City)) customer.City = req.City.Trim();
+            if (!string.IsNullOrWhiteSpace(req.Province)) customer.Province = req.Province.Trim();
+            if (!string.IsNullOrWhiteSpace(req.ZipCode)) customer.ZipCode = req.ZipCode.Trim();
         }
 
         var user = new User
@@ -111,6 +151,6 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
         await db.SaveChangesAsync();
 
         var (token, expiresAt) = tokens.CreateToken(user);
-        return StatusCode(201, new { token, expiresAt, user = AuthPayload.For(user) });
+        return StatusCode(201, new { token, expiresAt, user = AuthPayload.For(user, customer) });
     }
 }

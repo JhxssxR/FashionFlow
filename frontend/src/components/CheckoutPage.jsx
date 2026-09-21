@@ -54,6 +54,12 @@ const AuthPanel = ({ onAuthed }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  // Optional delivery address — also editable at checkout every order.
+  const [street, setStreet] = useState('');
+  const [barangay, setBarangay] = useState('');
+  const [city, setCity] = useState('');
+  const [province, setProvince] = useState('');
+  const [zip, setZip] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -64,7 +70,17 @@ const AuthPanel = ({ onAuthed }) => {
     try {
       const res = mode === 'signin'
         ? await api('/api/auth/login', { method: 'POST', body: { email, password } })
-        : await api('/api/auth/register', { method: 'POST', body: { name, email, password } });
+        : await api('/api/auth/register', {
+          method: 'POST',
+          body: {
+            name, email, password,
+            address: street.trim(),
+            barangay: barangay.trim(),
+            city: city.trim(),
+            province: province.trim(),
+            zipCode: zip.trim()
+          }
+        });
       saveAuth({ token: res.token, user: res.user });
       if (res.user.role !== 'Customer') {
         // Staff accounts can't shop — tell them instead of looping back.
@@ -86,10 +102,36 @@ const AuthPanel = ({ onAuthed }) => {
         <button type="button" className={`auth-tab${mode === 'register' ? ' active' : ''}`} onClick={() => setMode('register')}>CREATE ACCOUNT</button>
       </div>
       {mode === 'register' && (
-        <div className="form-group">
-          <label htmlFor="gate-name">FULL NAME</label>
-          <input id="gate-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Dela Cruz" required />
-        </div>
+        <>
+          <div className="form-group">
+            <label htmlFor="gate-name">FULL NAME</label>
+            <input id="gate-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Dela Cruz" required />
+          </div>
+          <div className="form-group">
+            <label htmlFor="gate-address">STREET ADDRESS <span className="optional-tag">(OPTIONAL)</span></label>
+            <input id="gate-address" value={street} onChange={(e) => setStreet(e.target.value)} placeholder="House no., street, subdivision" />
+          </div>
+          <div className="form-row-2">
+            <div className="form-group">
+              <label htmlFor="gate-barangay">BARANGAY</label>
+              <input id="gate-barangay" value={barangay} onChange={(e) => setBarangay(e.target.value)} placeholder="Barangay" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="gate-city">CITY</label>
+              <input id="gate-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="City / Municipality" />
+            </div>
+          </div>
+          <div className="form-row-2">
+            <div className="form-group">
+              <label htmlFor="gate-province">PROVINCE</label>
+              <input id="gate-province" value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Province" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="gate-zip">ZIP CODE</label>
+              <input id="gate-zip" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="e.g. 8000" />
+            </div>
+          </div>
+        </>
       )}
       <div className="form-group">
         <label htmlFor="gate-email">EMAIL</label>
@@ -122,7 +164,19 @@ const OrderForm = () => {
   const cart = useCart();
   const auth = getAuth();
   const products = useApi('/api/products');
-  const [address, setAddress] = useState('');
+  // Prefill from the saved signup address (still editable per order).
+  // Fetched live so even older sessions get it — never overwrites typing.
+  const me = useApi('/api/auth/me');
+  const [address, setAddress] = useState(() => auth?.user?.address?.combined || '');
+  const [addressFromProfile, setAddressFromProfile] = useState(false);
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!prefilled.current && !address && me.data?.address?.combined) {
+      prefilled.current = true;
+      setAddress(me.data.address.combined);
+      setAddressFromProfile(true);
+    }
+  }, [me.data, address]);
   const [method, setMethod] = useState('gcash');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -244,7 +298,10 @@ const OrderForm = () => {
           <div className="form-group">
             <label htmlFor="co-address">SHIPPING ADDRESS</label>
             <textarea id="co-address" rows={3} value={address} placeholder="House no., street, barangay, city"
-              onChange={(e) => setAddress(e.target.value)} required />
+              onChange={(e) => { setAddress(e.target.value); setAddressFromProfile(false); }} required />
+            {addressFromProfile && (
+              <p className="field-hint">Loaded from your saved address — edit freely.</p>
+            )}
           </div>
 
           <div className="form-group">
