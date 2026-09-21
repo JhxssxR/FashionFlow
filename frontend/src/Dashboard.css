@@ -1658,6 +1658,20 @@
 }
 
 /* ---------- Swipeable stat cards (phones: snap-scroll row) ---------- */
+/* Centered topbar title on mobile (all roles share DashboardLayout). */
+@media (max-width: 860px) {
+  /* Title takes the middle and centers — hamburger left, bell right. */
+  .dash-topbar > div:not(.dash-topbar-right) {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+  .dash-page-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 @media (max-width: 640px) {
   .stat-grid {
     display: flex;
