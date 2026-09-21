@@ -20,7 +20,7 @@ const Hero = () => {
             weekend party.
           </p>
           <div className="hero-buttons">
-            <button className="btn btn-primary" onClick={() => goTo('shop')}>SHOP NOW</button>
+            <button className="btn btn-primary" onClick={() => goTo('all')}>SHOP NOW</button>
             <button className="btn btn-secondary" onClick={() => goTo('offers')}>VIEW OFFERS</button>
           </div>
         </div>
