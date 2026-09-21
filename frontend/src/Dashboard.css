@@ -1678,6 +1678,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* Sidebar nav scrolls internally and never chains to the page behind;
+     the drawer itself stays pinned while open. */
+  .dash-nav {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 @media (max-width: 640px) {
   .stat-grid {

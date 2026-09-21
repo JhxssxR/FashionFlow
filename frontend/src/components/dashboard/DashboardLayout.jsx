@@ -122,6 +122,15 @@ const DashboardLayout = ({ role, user, children }) => {
     return () => window.removeEventListener('hashchange', handleHash);
   }, [config, role]);
 
+  // Lock background scroll while the mobile sidebar is open — the page
+  // behind must not move, only the sidebar nav itself scrolls.
+  React.useEffect(() => {
+    if (!navOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [navOpen]);
+
   const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
 
   const setPage = (pageId) => {
