@@ -30,6 +30,19 @@ const CartDrawer = () => {
           <div className="cart-empty">
             <strong>Your cart is empty</strong>
             <span>Add pieces from the collection to get started.</span>
+            <button
+              className="checkout-btn cart-shop-btn"
+              onClick={() => {
+                cart.setOpen(false);
+                if ((window.location.hash || '').toLowerCase() === '#all') {
+                  document.querySelector('.new-arrivals')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  window.location.hash = 'all';
+                }
+              }}
+            >
+              SHOP THE COLLECTION
+            </button>
           </div>
         ) : (
           <>

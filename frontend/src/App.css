@@ -1581,6 +1581,11 @@
   color: #666;
 }
 
+/* Empty-cart call to action: full-width shop button under the message */
+.cart-shop-btn {
+  margin-top: 14px;
+}
+
 .cart-items {
   flex: 1;
   overflow-y: auto;
