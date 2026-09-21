@@ -1598,6 +1598,10 @@
   overflow-wrap: anywhere;
 }
 
+.cart-item-info strong {
+  overflow-wrap: anywhere;
+}
+
 .cart-item-info span {
   color: #9a9a9a;
   font-size: 12px;
@@ -2202,6 +2206,44 @@
   .cart-drawer-foot {
     padding-left: 16px;
     padding-right: 16px;
+  }
+  .cart-items {
+    padding: 12px 16px;
+  }
+  .cart-drawer-foot {
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom));
+  }
+  .cart-item img {
+    width: 56px;
+    height: 70px;
+    flex-shrink: 0;
+  }
+  /* Stacked row on phones: thumbnail + info on line one, price + Remove as
+     a full-width row below — nothing can push anything off-screen. */
+  .cart-item {
+    flex-wrap: wrap;
+  }
+  .cart-item-info {
+    flex: 1;
+  }
+  .cart-item-info strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  .cart-item-side {
+    flex: 1 1 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 0;
+    max-width: none;
+  }
+  .cart-item-qty button {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
   }
 
   /* Shop grid stays 2-up (fashion standard) but breathes less */
