@@ -19,6 +19,7 @@ const CheckoutPage = ({ route }) => {
   if (view === 'success') return <SuccessView orderNumber={orderNumber} method={method} />;
   if (view === 'cancel') return <CancelView orderNumber={orderNumber} />;
   if (view === 'mock-pay') return <MockPayView route={route} />;
+  if (view === 'gcash-pay') return <GcashPayView orderNumber={orderNumber} />;
   return <FormView />;
 };
 
@@ -150,15 +151,156 @@ const AuthPanel = ({ onAuthed }) => {
 };
 
 // Payment choices offered at checkout (store policy: GCash + COD only).
-// gcash goes through the PayMongo hosted page; cod skips the gateway and
-// is paid to the courier.
+// gcash shows the store QR for manual payment + proof submit; cod skips
+// the gateway and is paid to the courier.
 const paymentOptions = [
-  { key: 'gcash', label: 'GCASH', desc: 'Pay with GCash via PayMongo' },
+  { key: 'gcash', label: 'GCASH', desc: 'Scan the store QR to pay' },
   { key: 'cod', label: 'CASH ON DELIVERY', desc: 'Pay cash when your order arrives' }
 ];
 
 const methodLabel = (key) => paymentOptions.find((o) => o.key === key)?.label
   || ({ online: 'ONLINE' }[key] || 'ONLINE');
+
+// GCash QR payment: scan the store QR, pay the exact total in the GCash
+// app, then leave the reference number + receipt below. Staff verify in
+// Online Orders; the order ships once verified.
+const GcashPayView = ({ orderNumber }) => {
+  const order = useApi(`/api/orders/${orderNumber}`);
+  const [refNo, setRefNo] = useState('');
+  const [receipt, setReceipt] = useState(null);
+  const [receiptName, setReceiptName] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const onFile = (e) => {
+    const f = e.target.files?.[0];
+    setErr('');
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) {
+      setErr('Receipt image is too large — 2MB max.');
+      return;
+    }
+    const rd = new FileReader();
+    rd.onload = () => { setReceipt(rd.result); setReceiptName(f.name); };
+    rd.readAsDataURL(f);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (refNo.trim().length < 4) {
+      setErr('Enter the GCash reference number from your payment.');
+      return;
+    }
+    setBusy(true);
+    setErr('');
+    try {
+      await api(`/api/orders/${orderNumber}/payment-proof`, {
+        method: 'POST',
+        body: { refNo: refNo.trim(), receiptImage: receipt }
+      });
+      setDone(true);
+      order.reload(true);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (order.loading && !order.data) {
+    return (
+      <section className="checkout-page">
+        <div className="checkout-card"><p className="checkout-sub">LOADING YOUR ORDER…</p></div>
+      </section>
+    );
+  }
+  if (order.error || !order.data) {
+    return (
+      <section className="checkout-page">
+        <div className="checkout-card">
+          <h2 className="checkout-title">Order not found</h2>
+          <p className="checkout-sub">{order.error || 'This order does not exist.'}</p>
+          <button className="checkout-btn" onClick={() => { window.location.hash = ''; }}>BACK TO STORE</button>
+        </div>
+      </section>
+    );
+  }
+
+  const o = order.data;
+  if (o.status === 'Paid' || o.status === 'Shipped' || o.status === 'Out for Delivery' || o.status === 'Delivered') {
+    return (
+      <section className="checkout-page">
+        <div className="checkout-card">
+          <span className="login-form-tag">PAYMENT VERIFIED</span>
+          <h2 className="checkout-title">You're all set.</h2>
+          <p className="checkout-sub">Order {o.id} is {o.status.toLowerCase()} — track it in Purchase History.</p>
+          <button className="checkout-btn" onClick={() => { window.location.hash = 'dashboard/customer/orders'; }}>TRACK ORDER →</button>
+        </div>
+      </section>
+    );
+  }
+
+  if (done || o.status === 'Awaiting Verification') {
+    return (
+      <section className="checkout-page">
+        <div className="checkout-card">
+          <span className="login-form-tag">PROOF RECEIVED</span>
+          <h2 className="checkout-title">Waiting for verification.</h2>
+          <p className="checkout-sub">
+            Order {o.id}{o.refNo ? ` · ref ${o.refNo}` : ''} is with our team now.
+            You'll be notified once payment is verified — no need to pay again.
+          </p>
+          <button className="checkout-btn" onClick={() => { window.location.hash = 'dashboard/customer/orders'; }}>PURCHASE HISTORY →</button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="checkout-page">
+      <div className="checkout-card">
+        <span className="login-form-tag">PAY WITH GCASH</span>
+        <h2 className="checkout-title">{peso2(o.total)}</h2>
+        <p className="checkout-sub">Order {o.id} · {o.items}</p>
+        <div className="qr-wrap">
+          <img src={o.qr?.imageUrl || '/assets/payments/gcash.png'} alt="Store GCash QR code" className="qr-img" />
+          <div className="qr-meta">
+            <strong>{o.qr?.accountName || 'FashionFlow'}</strong>
+            <span>{o.qr?.accountNumber || ''}</span>
+          </div>
+        </div>
+        <ol className="qr-steps">
+          <li>Scan the QR in your GCash app and pay exactly <strong>{peso2(o.total)}</strong>.</li>
+          <li>Copy the reference number from your GCash receipt.</li>
+          <li>Leave it below — our team verifies and ships your order.</li>
+        </ol>
+        <form onSubmit={submit} className="checkout-form">
+          <div className="form-group">
+            <label htmlFor="qr-ref">GCASH REFERENCE NUMBER</label>
+            <input
+              id="qr-ref"
+              value={refNo}
+              onChange={(e) => setRefNo(e.target.value)}
+              placeholder="e.g. 1234567890123"
+              required
+              minLength={4}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="qr-receipt">RECEIPT SCREENSHOT (OPTIONAL, 2MB MAX)</label>
+            <input id="qr-receipt" type="file" accept="image/*" onChange={onFile} />
+            {receiptName && <p className="field-hint">Attached: {receiptName}</p>}
+          </div>
+          {err && <p className="login-error" role="alert">{err}</p>}
+          <button type="submit" className="checkout-btn" disabled={busy}>
+            {busy ? 'SUBMITTING…' : 'SUBMIT PAYMENT →'}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+};
 
 const OrderForm = () => {
   const cart = useCart();
@@ -239,6 +381,9 @@ const OrderForm = () => {
         // Cash on delivery is fulfilled on the spot — straight to the
         // thank-you page.
         window.location.hash = `checkout/success/${res.orderNumber}/cod`;
+      } else if (res.qrPay) {
+        // GCash QR flow: scan the store QR, pay in-app, submit proof.
+        window.location.hash = `checkout/gcash-pay/${res.orderNumber}`;
       } else if (res.mock) {
         // No PayMongo keys configured yet — Development stand-in page.
         // The method segment personalises the stand-in page and the

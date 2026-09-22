@@ -259,7 +259,16 @@ namespace FashionFlow.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PaymentRefNo")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PromoCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ProofSubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReceiptImage")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ShippingAddress")

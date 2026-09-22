@@ -104,6 +104,14 @@ public record CheckoutRequest(
 
 public record MockConfirmRequest([Required] string OrderNumber);
 
+// ---------- GCash QR payment proof ----------
+public record SubmitProofRequest(
+    [Required, MinLength(4)] string RefNo,
+    // Optional base64 data-url receipt image (max ~2MB, enforced server-side).
+    string? ReceiptImage);
+
+public record VerifyPaymentRequest(bool Approved, string? Note);
+
 // ---------- Users (admin) ----------
 public record CreateUserRequest(
     [Required] string Name,

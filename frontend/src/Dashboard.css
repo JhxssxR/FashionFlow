@@ -414,6 +414,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  text-align: left;
 }
 
 .stat-label {
@@ -422,6 +423,7 @@
   font-weight: 600;
   letter-spacing: 1.6px;
   color: #8a8a8a;
+  text-align: left;
 }
 
 .stat-value {
@@ -430,11 +432,18 @@
   font-weight: 800;
   letter-spacing: -0.5px;
   color: #111;
+  display: block;
+  width: 100%;
+  text-align: right;
+  align-self: stretch;
 }
 
 .stat-sub {
   font-size: 0.75rem;
   color: #8a8a8a;
+  display: block;
+  width: 100%;
+  text-align: right;
 }
 
 /* ---------- Panels ---------- */
@@ -1658,6 +1667,63 @@
   .pos-stickybar-btn:disabled {
     opacity: 0.5;
   }
+}
+
+/* ---------- GCash proof verification (admin Online Orders) ---------- */
+.verify-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mini-btn.verify-ok {
+  background: #2e6b4a;
+}
+.mini-btn.verify-ok:hover {
+  background: #3d8a60;
+  color: #fff;
+}
+.mini-btn.verify-no {
+  background: #fff;
+  color: #b04a43;
+  border: 1px solid #efc5c1;
+}
+.mini-btn.verify-no:hover {
+  background: #b04a43;
+  color: #fff;
+}
+.receipt-modal {
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  padding: 26px 24px;
+  width: min(480px, 94vw);
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow: auto;
+}
+.receipt-modal h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 0 34px 6px 0;
+}
+.receipt-meta {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0 0 8px;
+}
+.receipt-meta code {
+  font-family: var(--font-mono);
+  background: #f4f4f2;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #111;
+}
+.receipt-img {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #ececec;
+  margin: 8px 0 14px;
+  display: block;
 }
 
 /* ---------- Swipeable stat cards (phones: snap-scroll row) ---------- */

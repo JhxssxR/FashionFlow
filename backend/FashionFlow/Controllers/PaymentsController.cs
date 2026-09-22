@@ -172,6 +172,16 @@ public class PaymentsController(
             return StatusCode(201, new { orderNumber = orderNumber, cod = true });
         }
 
+        // GCash QR flow (manual, no gateway): the storefront shows the store
+        // QR, the customer pays in their GCash app, then submits the reference
+        // number + receipt for staff verification. Stock is reserved at
+        // verification time (fulfilment re-checks and fails gracefully).
+        if (methodKey == "gcash")
+        {
+            await db.SaveChangesAsync();
+            return StatusCode(201, new { orderNumber = orderNumber, qrPay = true, total = order.Total });
+        }
+
         if (paymongo.IsConfigured)
         {
             try
@@ -284,6 +294,143 @@ public class PaymentsController(
             : Conflict(new { message = error, status = order.Status });
     }
 
+    // Single order with QR settings for the GCash pay page. Customers see
+    // only their own orders; staff see any order.
+    [HttpGet("orders/{orderNumber}")]
+    [Authorize(Roles = "Customer,Admin,SalesStaff,InventoryManager,Accountant")]
+    public async Task<IActionResult> GetOne(string orderNumber)
+    {
+        var order = await db.Orders.Include(o => o.Customer).Include(o => o.Items).ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+        if (order is null) return NotFound(new { message = "Order not found." });
+        if (User.IsInRole("Customer") && User.CustomerId() != order.CustomerId)
+            return StatusCode(403, new { message = "This is not your order." });
+
+        var settings = await db.AppSettings
+            .Where(a => a.Key == "GcashQrImageUrl" || a.Key == "GcashAccountName" || a.Key == "GcashAccountNumber")
+            .ToDictionaryAsync(a => a.Key, a => a.Value);
+        return Ok(new
+        {
+            id = order.OrderNumber,
+            date = order.CreatedAt,
+            customer = order.Customer == null ? order.GuestEmail : order.Customer.Name,
+            items = order.ItemsSummary,
+            lines = order.Items.Select(i => new { name = i.Product == null ? "Item" : i.Product.Name, quantity = i.Quantity, unitPrice = i.UnitPrice }),
+            subtotal = order.Subtotal,
+            discount = order.Discount,
+            total = order.Total,
+            paymentMethod = order.PaymentMethod,
+            status = order.Status,
+            refNo = order.PaymentRefNo,
+            hasReceipt = !string.IsNullOrEmpty(order.ReceiptImage),
+            qr = new
+            {
+                imageUrl = settings.GetValueOrDefault("GcashQrImageUrl", "/assets/payments/gcash.png"),
+                accountName = settings.GetValueOrDefault("GcashAccountName", "FashionFlow"),
+                accountNumber = settings.GetValueOrDefault("GcashAccountNumber", "")
+            }
+        });
+    }
+
+    // Customer submits GCash proof: reference number + optional receipt shot.
+    // Moves the order Pending → Awaiting Verification for staff to check.
+    [HttpPost("orders/{orderNumber}/payment-proof")]
+    [Authorize(Roles = "Customer")]
+    public async Task<IActionResult> SubmitProof(string orderNumber, SubmitProofRequest req)
+    {
+        var customerId = User.CustomerId();
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+        if (order is null) return NotFound(new { message = "Order not found." });
+        if (customerId is null || order.CustomerId != customerId)
+            return StatusCode(403, new { message = "This is not your order." });
+        if (!order.PaymentMethod.Contains("gcash", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Payment proof is only for GCash orders." });
+        if (order.Status != "Pending" && order.Status != "Awaiting Verification")
+            return Conflict(new { message = $"Order is already {order.Status} — no proof needed." });
+
+        var refNo = (req.RefNo ?? "").Trim();
+        if (refNo.Length < 4 || refNo.Length > 64)
+            return BadRequest(new { message = "Enter the GCash reference number (at least 4 characters)." });
+        if (!string.IsNullOrEmpty(req.ReceiptImage))
+        {
+            if (!req.ReceiptImage.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Receipt must be an image file." });
+            if (req.ReceiptImage.Length > 2_800_000)
+                return BadRequest(new { message = "Receipt image is too large — 2MB max." });
+            order.ReceiptImage = req.ReceiptImage;
+        }
+
+        order.PaymentRefNo = refNo;
+        order.Status = "Awaiting Verification";
+        order.ProofSubmittedAt = DateTime.Now;
+        db.SystemLogs.Add(Audit.Log(User.Email(),
+            $"Payment proof submitted for {order.OrderNumber} — ref {refNo} (₱{order.Total:N0})", "Sales"));
+        await Notifications.PushRolesAsync(db, ["Admin", "SalesStaff"],
+            $"Payment to verify: {order.OrderNumber}",
+            $"GCash ref {refNo} — ₱{order.Total:N0}. Open Online Orders to verify.",
+            "Order", "dashboard/admin/orders");
+        await db.SaveChangesAsync();
+        return Ok(new { id = order.OrderNumber, status = order.Status });
+    }
+
+    // Staff verdict on submitted proof. Approve → fulfilled as a Paid sale
+    // (stock re-checked); Reject → back to Pending for resubmission.
+    [HttpPost("orders/{orderNumber}/verify-payment")]
+    [Authorize(Roles = "Admin,SalesStaff,InventoryManager")]
+    public async Task<IActionResult> VerifyPayment(string orderNumber, VerifyPaymentRequest req)
+    {
+        var order = await db.Orders.Include(o => o.Items).ThenInclude(i => i.Product).ThenInclude(p => p!.Inventories)
+            .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+        if (order is null) return NotFound(new { message = "Order not found." });
+        if (order.Status != "Awaiting Verification")
+            return Conflict(new { message = $"Order is {order.Status} — nothing to verify." });
+
+        if (!req.Approved)
+        {
+            order.Status = "Pending";
+            db.SystemLogs.Add(Audit.Log(User.Email(),
+                $"Payment proof REJECTED for {order.OrderNumber} (ref {order.PaymentRefNo})" +
+                (string.IsNullOrWhiteSpace(req.Note) ? "" : $" — {req.Note}"), "Sales"));
+            if (order.CustomerId is int rcid)
+            {
+                var racc = await db.Users.FirstOrDefaultAsync(u => u.CustomerId == rcid);
+                if (racc is not null)
+                    Notifications.Push(db, racc.UserId,
+                        $"Payment for {order.OrderNumber} needs attention",
+                        "Our team could not verify your proof. Please check the ref number and resubmit.",
+                        "Order", "dashboard/customer");
+            }
+            await db.SaveChangesAsync();
+            return Ok(new { id = order.OrderNumber, status = order.Status });
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var error = await fulfillment.FulfillAsync(order, User.Email(), "GCash");
+        await tx.CommitAsync();
+        return error is null
+            ? Ok(new { id = order.OrderNumber, status = order.Status })
+            : Conflict(new { message = error, status = order.Status });
+    }
+
+    // Staff-only: the submitted reference + receipt image for verification.
+    [HttpGet("orders/{orderNumber}/receipt")]
+    [Authorize(Roles = "Admin,SalesStaff,InventoryManager,Accountant")]
+    public async Task<IActionResult> Receipt(string orderNumber)
+    {
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
+        if (order is null) return NotFound(new { message = "Order not found." });
+        return Ok(new
+        {
+            id = order.OrderNumber,
+            total = order.Total,
+            paymentMethod = order.PaymentMethod,
+            status = order.Status,
+            refNo = order.PaymentRefNo,
+            receiptImage = order.ReceiptImage,
+            proofAt = order.ProofSubmittedAt
+        });
+    }
+
     // The logged-in customer's online orders (for the purchase-history page).
     [HttpGet("orders/mine")]
     [Authorize(Roles = "Customer")]
@@ -303,6 +450,7 @@ public class PaymentsController(
                 items = o.ItemsSummary,
                 total = o.Total,
                 status = o.Status,
+                refNo = o.PaymentRefNo,
                 points = db.Sales.Where(s => s.ReceiptNo == o.OrderNumber).Sum(s => (int?)s.LoyaltyPointsEarned) ?? 0
             })
             .ToListAsync();
@@ -331,7 +479,9 @@ public class PaymentsController(
                 items = o.ItemsSummary,
                 total = o.Total,
                 paymentMethod = o.PaymentMethod,
-                o.Status
+                o.Status,
+                refNo = o.PaymentRefNo,
+                hasReceipt = o.ReceiptImage != null
             })
             .ToListAsync();
         return Ok(rows);

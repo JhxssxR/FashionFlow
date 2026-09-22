@@ -33,6 +33,13 @@ public class Order
     // PayMongo checkout_session id (cs_xxx) tying the webhook to this order.
     public string? CheckoutSessionId { get; set; }
 
+    // GCash QR flow: customer scans the store QR, pays in-app, then submits
+    // the reference number + receipt screenshot for staff verification.
+    public string? PaymentRefNo { get; set; }
+    // Base64 data-url receipt image (nullable, ~2MB cap enforced at submit).
+    public string? ReceiptImage { get; set; }
+    public DateTime? ProofSubmittedAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime? PaidAt { get; set; }
 

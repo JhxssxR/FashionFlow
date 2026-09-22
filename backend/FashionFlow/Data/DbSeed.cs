@@ -321,6 +321,29 @@ public static class DbSeed
         }
     }
 
+    // GCash QR settings for the manual payment flow (idempotent: only adds
+    // missing keys). The admin pastes the store's real QR image URL + account
+    // details in System Settings; until then a GCash logo placeholder shows.
+    public static async Task EnsurePaymentSettingsAsync(FashionFlowDbContext db)
+    {
+        var defaults = new (string Key, string Value)[]
+        {
+            ("GcashQrImageUrl", "/assets/payments/gcash.png"),
+            ("GcashAccountName", "FashionFlow"),
+            ("GcashAccountNumber", "09XX-XXX-XXXX (set in System Settings)")
+        };
+        foreach (var (key, value) in defaults)
+        {
+            if (!await db.AppSettings.AnyAsync(a => a.Key == key))
+                db.AppSettings.Add(new AppSetting { Key = key, Value = value });
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
     // Backfill: if a PO was created before the supplier's User account existed,
     // the notification was never pushed. This creates the missing notifications
     // for any Pending POs that have no matching notification row.

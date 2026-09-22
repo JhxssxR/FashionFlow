@@ -141,6 +141,7 @@ const OnlineOrders = () => {
   const [tick, setTick] = useState(0);
   const [busyId, setBusyId] = useState('');
   const [err, setErr] = useState('');
+  const [proof, setProof] = useState(null); // { id, refNo, receiptImage, ... } in the verify modal
   const orders = useApi('/api/orders', [tick]);
 
   const advance = async (row) => {
@@ -158,10 +159,44 @@ const OnlineOrders = () => {
     }
   };
 
+  // Open the receipt modal: ref number + screenshot for this GCash order.
+  const viewProof = async (row) => {
+    setErr('');
+    try {
+      const data = await api(`/api/orders/${row.id}/receipt`);
+      setProof(data);
+    } catch (ex) {
+      setErr(ex.message);
+    }
+  };
+
+  // Staff verdict on submitted GCash proof.
+  const verify = async (orderId, approved) => {
+    setBusyId(orderId);
+    setErr('');
+    try {
+      await api(`/api/orders/${orderId}/verify-payment`, { method: 'POST', body: { approved } });
+      setProof(null);
+      setTick((t) => t + 1);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const awaitingCount = (orders.data || []).filter((o) => o.status === 'Awaiting Verification').length;
+
   return (
     <>
       <div className="stat-grid">
         <StatCard label="ONLINE ORDERS" value={num(orders.data?.length)} sub="All storefront orders" />
+        <StatCard
+          label="AWAITING VERIFICATION"
+          value={num(awaitingCount)}
+          sub="GCash proofs to check"
+          tone="red"
+        />
         <StatCard
           label="IN DELIVERY"
           value={num((orders.data || []).filter((o) => o.status === 'Paid' || o.status === 'Shipped' || o.status === 'Out for Delivery' || (o.status === 'Pending' && (o.paymentMethod?.toLowerCase().includes('cash on delivery') || o.paymentMethod?.toLowerCase() === 'cod'))).length)}
@@ -169,7 +204,7 @@ const OnlineOrders = () => {
           tone="purple"
         />
       </div>
-      <Panel title="Online orders" subtitle="Move orders along: Paid/Pending (COD) → Shipped → Out for Delivery → Delivered (COD payments are received upon delivery)">
+      <Panel title="Online orders" subtitle="Verify GCash proofs first (Awaiting Verification), then move orders along: Paid/Pending (COD) → Shipped → Out for Delivery → Delivered">
         <ErrorNote message={orders.error || err} />
         {orders.loading && !orders.data ? <Loading /> : (
           <DataTable
@@ -182,12 +217,28 @@ const OnlineOrders = () => {
               { key: 'customer', label: 'Customer' },
               { key: 'items', label: 'Items' },
               { key: 'total', label: 'Total', render: (r) => peso(r.total) },
-              { key: 'paymentMethod', label: 'Payment' },
+              { key: 'paymentMethod', label: 'Payment', render: (r) => (<span>{r.paymentMethod}{r.refNo ? <><br /><code>Ref: {r.refNo}</code></> : null}</span>) },
               { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
               {
                 key: 'next',
                 label: 'Delivery',
                 render: (r) => {
+                  // GCash proof submitted — inspect the receipt, then decide.
+                  if (r.status === 'Awaiting Verification') {
+                    return (
+                      <div className="verify-btns">
+                        <button className="mini-btn" disabled={busyId === r.id} onClick={() => viewProof(r)}>
+                          VIEW RECEIPT
+                        </button>
+                        <button className="mini-btn verify-ok" disabled={busyId === r.id} onClick={() => verify(r.id, true)}>
+                          {busyId === r.id ? 'SAVING…' : 'VERIFY ✓'}
+                        </button>
+                        <button className="mini-btn verify-no" disabled={busyId === r.id} onClick={() => verify(r.id, false)}>
+                          REJECT
+                        </button>
+                      </div>
+                    );
+                  }
                   const next = getNextDeliveryStep(r);
                   if (next) {
                     const isCodDelivery = next === 'Delivered' && (r.paymentMethod?.toLowerCase().includes('cash on delivery') || r.paymentMethod?.toLowerCase() === 'cod');
@@ -209,6 +260,29 @@ const OnlineOrders = () => {
           />
         )}
       </Panel>
+      {proof && (
+        <div className="product-modal-overlay" onClick={() => setProof(null)}>
+          <div className="receipt-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="product-modal-close" onClick={() => setProof(null)} aria-label="Close">×</button>
+            <h3>Payment proof — {proof.id}</h3>
+            <p className="receipt-meta">{proof.paymentMethod} · {peso(proof.total)} · {proof.status}</p>
+            <p className="receipt-meta">Reference: <code>{proof.refNo || '—'}</code></p>
+            {proof.receiptImage ? (
+              <img src={proof.receiptImage} alt={`GCash receipt for ${proof.id}`} className="receipt-img" />
+            ) : (
+              <p className="receipt-meta">No receipt image — verify against the reference number.</p>
+            )}
+            <div className="verify-btns">
+              <button className="mini-btn verify-ok" disabled={busyId === proof.id} onClick={() => verify(proof.id, true)}>
+                {busyId === proof.id ? 'SAVING…' : 'VERIFY ✓'}
+              </button>
+              <button className="mini-btn verify-no" disabled={busyId === proof.id} onClick={() => verify(proof.id, false)}>
+                REJECT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
