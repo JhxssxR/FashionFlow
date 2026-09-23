@@ -13,6 +13,9 @@ const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.purple, CHART_COLORS.green, '#b9b9b9'];
 
 const LOGS_PAGE_SIZE = 10;
+// Overview side-by-side tables page through 8 rows at a time so the two
+// panels stay the same height (no stretched white void).
+const OVERVIEW_PAGE_SIZE = 8;
 
 const ROLE_OPTIONS = [
   ['Admin', 'System Administrator'],
@@ -342,6 +345,8 @@ const AdminDashboard = ({ user }) => {
   const byRole = useApi('/api/users/by-role');
   const [usersTick, setUsersTick] = useState(0);
   const [logsPage, setLogsPage] = useState(1);
+  const [overviewUsersPage, setOverviewUsersPage] = useState(1);
+  const [overviewStockPage, setOverviewStockPage] = useState(1);
 
   const usersQ = useApi('/api/users', [usersTick]);
   // 200 = the API's cap; the logs page pages through them 10 at a time.
@@ -359,6 +364,13 @@ const AdminDashboard = ({ user }) => {
     role: u.roleLabel,
     status: u.status
   }));
+
+  // Overview pagination: clamp the page so it never points past the data.
+  const stockRows = lowStock.data?.rows || [];
+  const overviewUsersCount = Math.max(1, Math.ceil(userRows.length / OVERVIEW_PAGE_SIZE));
+  const overviewUsersSafe = Math.min(overviewUsersPage, overviewUsersCount);
+  const overviewStockCount = Math.max(1, Math.ceil(stockRows.length / OVERVIEW_PAGE_SIZE));
+  const overviewStockSafe = Math.min(overviewStockPage, overviewStockCount);
 
   const revenueChart = (
     <ResponsiveContainer width="100%" height={260}>
@@ -545,18 +557,27 @@ const AdminDashboard = ({ user }) => {
               <Panel title="Employees & accounts" subtitle="People with ERP access">
                 <ErrorNote message={usersQ.error} />
                 {usersQ.loading && !usersQ.data ? <Loading /> : (
-                  <DataTable
-                    keyField="email"
-                    emptyTitle="NO EMPLOYEE ACCOUNTS YET"
-                    emptyNote="Invite team members from the Users & Roles page."
-                    columns={[
-                      { key: 'name', label: 'Name' },
-                      { key: 'role', label: 'Role' },
-                      { key: 'email', label: 'Email' },
-                      { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
-                    ]}
-                    rows={userRows}
-                  />
+                  <>
+                    <DataTable
+                      keyField="email"
+                      emptyTitle="NO EMPLOYEE ACCOUNTS YET"
+                      emptyNote="Invite team members from the Users & Roles page."
+                      columns={[
+                        { key: 'name', label: 'Name' },
+                        { key: 'role', label: 'Role' },
+                        { key: 'email', label: 'Email' },
+                        { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
+                      ]}
+                      rows={userRows.slice((overviewUsersSafe - 1) * OVERVIEW_PAGE_SIZE, overviewUsersSafe * OVERVIEW_PAGE_SIZE)}
+                    />
+                    <Pager
+                      page={overviewUsersSafe}
+                      pageCount={overviewUsersCount}
+                      total={userRows.length}
+                      pageSize={OVERVIEW_PAGE_SIZE}
+                      onPage={setOverviewUsersPage}
+                    />
+                  </>
                 )}
               </Panel>
 
@@ -574,14 +595,25 @@ const AdminDashboard = ({ user }) => {
                       { key: 'variant', label: 'Variant' },
                       { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> }
                     ]}
-                    rows={lowStock.data?.rows || []}
+                    rows={stockRows.slice((overviewStockSafe - 1) * OVERVIEW_PAGE_SIZE, overviewStockSafe * OVERVIEW_PAGE_SIZE)}
+                  />
+                  <Pager
+                    page={overviewStockSafe}
+                    pageCount={overviewStockCount}
+                    total={stockRows.length}
+                    pageSize={OVERVIEW_PAGE_SIZE}
+                    onPage={setOverviewStockPage}
                   />
                   </>
                 )}
               </Panel>
             </div>
 
-            <Panel title="System activity logs" subtitle="Every module action, newest first">
+            <Panel
+              title="System activity logs"
+              subtitle="Every module action, newest first"
+              action={<a className="panel-link" href="#dashboard/admin/logs">VIEW ALL →</a>}
+            >
               <ErrorNote message={logs.error} />
               {logs.loading ? <Loading /> : (
                 <DataTable
