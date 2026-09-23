@@ -246,6 +246,7 @@ const SalesDashboard = ({ user }) => {
                       { key: 'spent', label: 'Lifetime spend', render: (r) => peso(r.spent) }
                     ]}
                     rows={customersQ.data || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -271,6 +272,7 @@ const SalesDashboard = ({ user }) => {
                     { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
                   ]}
                   rows={promos.data || []}
+                  pageSize={10}
                 />
               )}
             </Panel>

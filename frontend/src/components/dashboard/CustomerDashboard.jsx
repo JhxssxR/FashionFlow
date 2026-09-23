@@ -152,6 +152,7 @@ const CustomerDashboard = ({ user }) => {
             ...(compact ? [] : [{ key: 'points', label: 'Points', render: (r) => (r.points > 0 ? `+${r.points}` : '—') }])
           ]}
           rows={orderRows}
+          pageSize={10}
         />
       )}
     </Panel>
@@ -172,6 +173,7 @@ const CustomerDashboard = ({ user }) => {
             { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
           ]}
           rows={(promos.data || []).filter((p) => !p.appliesTo.startsWith('Tier:') || p.appliesTo === `Tier:${loyalty.data?.tier}`)}
+          pageSize={8}
         />
       )}
     </Panel>
@@ -200,6 +202,7 @@ const CustomerDashboard = ({ user }) => {
                       { key: 'redeemed', label: 'Redeemed', render: (r) => (r.redeemed > 0 ? `−${r.redeemed}` : '—') }
                     ]}
                     rows={loyalty.data?.ledger || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>

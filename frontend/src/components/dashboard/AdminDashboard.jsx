@@ -260,6 +260,7 @@ const OnlineOrders = () => {
               }
             ]}
             rows={orders.data || []}
+            pageSize={10}
           />
         )}
       </Panel>
@@ -424,6 +425,7 @@ const AdminDashboard = ({ user }) => {
                       { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
                     ]}
                     rows={userRows}
+                    pageSize={10}
                   />
                 )}
               </Panel>

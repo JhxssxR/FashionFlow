@@ -200,6 +200,7 @@ export const SavedReportsPanel = ({
             }
           ]}
           rows={reports.data || []}
+          pageSize={10}
         />
       )}
     </Panel>

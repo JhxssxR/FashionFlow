@@ -76,6 +76,7 @@ const AccountantDashboard = ({ user }) => {
                       { key: 'amount', label: 'Amount', render: (r) => peso(r.amount) }
                     ]}
                     rows={d.payables || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>

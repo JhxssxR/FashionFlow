@@ -161,6 +161,7 @@ const PurchasingDashboard = ({ user }) => {
         { key: 'status', label: 'Status' }
       ]}
       rows={rowsToShow}
+      pageSize={10}
     />
   );
 
@@ -226,6 +227,7 @@ const PurchasingDashboard = ({ user }) => {
                       { key: 'rating', label: 'Rating', render: (r) => `★ ${r.rating}` }
                     ]}
                     rows={suppliers.data || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -281,6 +283,7 @@ const PurchasingDashboard = ({ user }) => {
                       { key: 'status', label: 'Stage' }
                     ]}
                     rows={tracking.map((r) => ({ id: r.id, status: r.status }))}
+                    pageSize={10}
                   />
                 </Panel>
               </div>
@@ -340,6 +343,7 @@ const PurchasingDashboard = ({ user }) => {
                     }
                   ]}
                   rows={reorderRows}
+                  pageSize={10}
                 />
               )}
             </Panel>
@@ -407,6 +411,7 @@ const PurchasingDashboard = ({ user }) => {
                     { key: 'category', label: 'Specialty' }
                   ]}
                   rows={suppliers.data || []}
+                  pageSize={10}
                 />
               )}
             </Panel>

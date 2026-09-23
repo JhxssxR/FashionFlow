@@ -186,6 +186,7 @@ const InventoryDashboard = ({ user }) => {
                       }
                     ]}
                     rows={products.data || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -215,6 +216,7 @@ const InventoryDashboard = ({ user }) => {
                       { key: 'reference', label: 'Reference' }
                     ]}
                     rows={movements.data || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -271,6 +273,7 @@ const InventoryDashboard = ({ user }) => {
                       }
                     ]}
                     rows={onlineOrders.data || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -300,6 +303,7 @@ const InventoryDashboard = ({ user }) => {
                       { key: 'status', label: 'Status' }
                     ]}
                     rows={incoming}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -356,11 +360,12 @@ const InventoryDashboard = ({ user }) => {
                   emptyNote="Products at or below the threshold appear here automatically."
                   columns={[
                     { key: 'name', label: 'Product' },
-                    { key: 'variant', label: 'Variant' },
-                    { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> }
-                  ]}
-                  rows={lowStock.data?.rows || []}
-                />
+                      { key: 'variant', label: 'Variant' },
+                      { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> }
+                    ]}
+                    rows={lowStock.data?.rows || []}
+                    pageSize={10}
+                  />
               </Panel>
               <SavedReportsPanel role="inventory" defaultType="Inventory" />
             </>
@@ -412,11 +417,12 @@ const InventoryDashboard = ({ user }) => {
                   emptyTitle="NO STOCK ALERTS"
                   emptyNote="Products at or below the threshold appear here automatically."
                   columns={[
-                    { key: 'name', label: 'Product' },
-                    { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> }
-                  ]}
-                  rows={lowStock.data?.rows || []}
-                />
+                      { key: 'name', label: 'Product' },
+                      { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> }
+                    ]}
+                    rows={lowStock.data?.rows || []}
+                    pageSize={8}
+                  />
               </Panel>
 
               <Panel title="Storage locations" subtitle="Warehouse utilisation">
@@ -451,6 +457,7 @@ const InventoryDashboard = ({ user }) => {
                     { key: 'status', label: 'Status' }
                   ]}
                   rows={incoming}
+                  pageSize={10}
                 />
               )}
             </Panel>

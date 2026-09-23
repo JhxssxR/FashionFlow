@@ -123,7 +123,7 @@ const SupplierDashboard = ({ user }) => {
                 {orders.loading && !orders.data ? <Loading /> : (
                   <DataTable keyField="purchaseId" emptyTitle="NO PURCHASE ORDERS YET"
                     emptyNote="When FashionFlow issues a purchase order to you, it appears here for acceptance and status updates."
-                    columns={orderColumns(true)} rows={rows} />
+                    columns={orderColumns(true)} rows={rows} pageSize={10} />
                 )}
               </Panel>
             </>
@@ -147,6 +147,7 @@ const SupplierDashboard = ({ user }) => {
                     { key: 'leadTime', label: 'Lead time' }
                   ]}
                   rows={catalog.data || []}
+                  pageSize={10}
                 />
               )}
             </Panel>
@@ -175,6 +176,7 @@ const SupplierDashboard = ({ user }) => {
                       { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> }
                     ]}
                     rows={payments.data?.rows || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>

@@ -30,13 +30,21 @@ export function StatusBadge({ status }) {
   return <span className={`status-badge status-${statusTone(status)}`}>{status}</span>;
 }
 
-export function DataTable({ columns, rows, keyField, emptyTitle, emptyNote }) {
-  if (!rows || rows.length === 0) {
+export function DataTable({ columns, rows, keyField, emptyTitle, emptyNote, pageSize }) {
+  const [page, setPage] = React.useState(1);
+  const list = rows || [];
+  if (list.length === 0) {
     return <EmptyState title={emptyTitle} note={emptyNote} />;
   }
+  // Opt-in client-side pagination: pass pageSize={10} and long tables page
+  // through the shared Pager (hidden automatically on a single page).
+  const pageCount = pageSize ? Math.max(1, Math.ceil(list.length / pageSize)) : 1;
+  const safePage = Math.min(page, pageCount);
+  const shown = pageSize ? list.slice((safePage - 1) * pageSize, safePage * pageSize) : list;
   return (
-    // .table-scroll lets wide tables swipe sideways on phones instead of
-    // stretching the whole dashboard page.
+    <>
+    {/* .table-scroll lets wide tables swipe sideways on phones instead of
+        stretching the whole dashboard page. */}
     <div className="table-scroll">
       <table className="data-table">
         <thead>
@@ -47,7 +55,7 @@ export function DataTable({ columns, rows, keyField, emptyTitle, emptyNote }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {shown.map((row) => (
             <tr key={row[keyField]}>
               {columns.map((col) => (
                 <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
@@ -57,6 +65,10 @@ export function DataTable({ columns, rows, keyField, emptyTitle, emptyNote }) {
         </tbody>
       </table>
     </div>
+    {pageSize ? (
+      <Pager page={safePage} pageCount={pageCount} total={list.length} pageSize={pageSize} onPage={setPage} />
+    ) : null}
+    </>
   );
 }
 
