@@ -41,6 +41,7 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
         mb.Entity<AppSetting>().HasKey(a => a.Key);
         mb.Entity<Order>().HasIndex(o => o.OrderNumber).IsUnique();
         mb.Entity<Order>().HasIndex(o => o.CheckoutSessionId);
+        mb.Entity<Order>().HasIndex(o => o.IdempotencyKey).IsUnique();
         mb.Entity<OrderItem>().HasKey(i => i.OrderItemId);
         mb.Entity<Notification>().HasOne(n => n.User).WithMany()
             .HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);

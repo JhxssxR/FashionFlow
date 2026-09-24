@@ -32,6 +32,10 @@ public class Order
     public string PaymentMethod { get; set; } = "Online";
     // PayMongo checkout_session id (cs_xxx) tying the webhook to this order.
     public string? CheckoutSessionId { get; set; }
+    // Client-generated idempotency key (one per checkout visit): retried or
+    // double-clicked checkouts return the original order instead of cloning
+    // it. Null for orders created before this existed.
+    public string? IdempotencyKey { get; set; }
 
     // GCash QR flow: customer scans the store QR, pays in-app, then submits
     // the reference number + receipt screenshot for staff verification.

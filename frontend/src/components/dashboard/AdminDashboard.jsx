@@ -189,11 +189,15 @@ const OnlineOrders = () => {
   };
 
   const awaitingCount = (orders.data || []).filter((o) => o.status === 'Awaiting Verification').length;
+  const isCodMethod = (m) => (m || '').toLowerCase().includes('cash on delivery') || (m || '').toLowerCase() === 'cod';
+  // Unpaid GCash checkouts (Pending, no proof submitted yet) are hidden from
+  // the staff queue. COD Pending orders stay — they're paid to the courier.
+  const visibleOrders = (orders.data || []).filter((o) => o.status !== 'Pending' || isCodMethod(o.paymentMethod));
 
   return (
     <>
       <div className="stat-grid">
-        <StatCard label="ONLINE ORDERS" value={num(orders.data?.length)} sub="All storefront orders" />
+        <StatCard label="ONLINE ORDERS" value={num(visibleOrders.length)} sub="Excluding unpaid GCash checkouts" />
         <StatCard
           label="AWAITING VERIFICATION"
           value={num(awaitingCount)}
@@ -207,7 +211,7 @@ const OnlineOrders = () => {
           tone="purple"
         />
       </div>
-      <Panel title="Online orders" subtitle="Verify GCash proofs first (Awaiting Verification), then move orders along: Paid/Pending (COD) → Shipped → Out for Delivery → Delivered">
+      <Panel title="Online orders" subtitle="Verify GCash proofs first (Awaiting Verification), then move orders along: Paid/Pending (COD) → Shipped → Out for Delivery → Delivered. Unpaid GCash checkouts are hidden automatically.">
         <ErrorNote message={orders.error || err} />
         {orders.loading && !orders.data ? <Loading /> : (
           <DataTable
@@ -259,7 +263,7 @@ const OnlineOrders = () => {
                 }
               }
             ]}
-            rows={orders.data || []}
+            rows={visibleOrders}
             pageSize={10}
           />
         )}

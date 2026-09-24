@@ -29,10 +29,10 @@ public static class DbSeed
         // suppliers and the Supplier Portal accounts are linked to them) ----------
         var suppliers = new List<Supplier>
         {
-            new() { Name = "Denim Republic PH", Contact = "Marco Lim", Email = "supplier@fashionflow.com", Category = "Denim & Bottoms", Address = "12 Kamagong St., Makati City", Rating = 4.8m, OnTimeRate = 96 },
-            new() { Name = "Manila Textile Hub", Contact = "Lorna Bautista", Email = "lorna@manilatextile.ph", Category = "Fabrics", Address = "88 Divisoria Market, Manila", Rating = 4.6m, OnTimeRate = 92 },
-            new() { Name = "Cebu Garments Co.", Contact = "Paolo Escaño", Email = "paolo@cebugarments.com", Category = "Tops & Tees", Address = "5 Mandaue Industrial Park, Cebu", Rating = 4.4m, OnTimeRate = 88 },
-            new() { Name = "Baguio Weaves", Contact = "Aileen Kim", Email = "aileen@baguioweaves.ph", Category = "Outerwear", Address = "3 Session Road, Baguio City", Rating = 4.9m, OnTimeRate = 98 },
+            new() { Name = "Denim Republic PH", Contact = "Bugsoy Oribe", Email = "bugsoy@fashionflow.com", Category = "Denim & Bottoms", Address = "12 Kamagong St., Makati City", Rating = 4.8m, OnTimeRate = 96 },
+            new() { Name = "Manila Textile Hub", Contact = "Jason La", Email = "jason@fashionflow.com", Category = "Fabrics", Address = "88 Divisoria Market, Manila", Rating = 4.6m, OnTimeRate = 92 },
+            new() { Name = "Cebu Garments Co.", Contact = "Francisco Packettracer", Email = "francisco@fashionflow.com", Category = "Tops & Tees", Address = "5 Mandaue Industrial Park, Cebu", Rating = 4.4m, OnTimeRate = 88 },
+            new() { Name = "Baguio Weaves", Contact = "Jaybe Sulasok", Email = "jaybe@fashionflow.com", Category = "Outerwear", Address = "3 Session Road, Baguio City", Rating = 4.9m, OnTimeRate = 98 },
             new() { Name = "Davao Apparel Supply", Contact = "Rico Dizon", Email = "rico@davaoapparel.com", Category = "Dresses", Address = "21 Quimpo Blvd., Davao City", Rating = 4.2m, OnTimeRate = 84 }
         };
         db.Suppliers.AddRange(suppliers);
@@ -60,8 +60,10 @@ public static class DbSeed
             new() { Name = "Jasmine Cruz", Email = "sales@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("s4l3sPOS!@#", workFactor: 10), Role = "SalesStaff", DashboardKey = "sales", Status = "Active" },
             new() { Name = "Bea Mendoza", Email = "customer@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("cust0m3r!@#", workFactor: 10), Role = "Customer", DashboardKey = "customer", Status = "Active", CustomerId = bea.CustomerId },
             new() { Name = "Pia Santos", Email = "accountan@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("acc0unt4n!@#", workFactor: 10), Role = "Accountant", DashboardKey = "accountant", Status = "Active" },
-            new() { Name = "Marco Lim", Email = "supplier@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("suppl13r!@#", workFactor: 10), Role = "Supplier", DashboardKey = "supplier", Status = "Active", SupplierId = suppliers[0].SupplierId },
-            new() { Name = "Lorna Bautista", Email = "lorna@manilatextile.ph", PasswordHash = BCrypt.Net.BCrypt.HashPassword("inv1t3d!@#", workFactor: 10), Role = "Supplier", DashboardKey = "supplier", Status = "Invited", SupplierId = suppliers[1].SupplierId }
+            new() { Name = "Bugsoy Oribe", Email = "bugsoy@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("bugsoy123!@#", workFactor: 10), Role = "Supplier", DashboardKey = "supplier", Status = "Active", SupplierId = suppliers[0].SupplierId },
+            new() { Name = "Jason La", Email = "jason@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("jason123!@#", workFactor: 10), Role = "Supplier", DashboardKey = "supplier", Status = "Invited", SupplierId = suppliers[1].SupplierId },
+            new() { Name = "Francisco Packettracer", Email = "francisco@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("francisco123!@#", workFactor: 10), Role = "Supplier", DashboardKey = "supplier", Status = "Active", SupplierId = suppliers[2].SupplierId },
+            new() { Name = "Jaybe Sulasok", Email = "jaybe@fashionflow.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("jaybe123!@#", workFactor: 10), Role = "Supplier", DashboardKey = "supplier", Status = "Active", SupplierId = suppliers[3].SupplierId }
         };
         db.Users.AddRange(users);
         await db.SaveChangesAsync();
@@ -312,6 +314,60 @@ public static class DbSeed
                     Status = "Active",
                     SupplierId = s.SupplierId
                 });
+            }
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    // Points the 4 seeded supplier companies at their portal owners, keeping
+    // the directory (contact/email) and the logins in step. Idempotent and
+    // safe to run every startup: accounts are created with default
+    // credentials, renamed when reassigned, and an existing password is only
+    // reset when the email itself changes.
+    public static async Task SyncSupplierPortalAccountsAsync(FashionFlowDbContext db)
+    {
+        var desired = new (string Company, string Person, string Email, string Password)[]
+        {
+            ("Denim Republic PH", "Bugsoy Oribe", "bugsoy@fashionflow.com", "bugsoy123!@#"),
+            ("Manila Textile Hub", "Jason La", "jason@fashionflow.com", "jason123!@#"),
+            ("Cebu Garments Co.", "Francisco Packettracer", "francisco@fashionflow.com", "francisco123!@#"),
+            ("Baguio Weaves", "Jaybe Sulasok", "jaybe@fashionflow.com", "jaybe123!@#"),
+        };
+
+        foreach (var (company, person, email, password) in desired)
+        {
+            var supplier = await db.Suppliers.FirstOrDefaultAsync(s => s.Name == company);
+            if (supplier is null) continue;
+
+            supplier.Contact = person;
+            supplier.Email = email;
+
+            var user = await db.Users.FirstOrDefaultAsync(u => u.SupplierId == supplier.SupplierId);
+            if (user is null)
+            {
+                db.Users.Add(new User
+                {
+                    Name = person,
+                    Email = email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10),
+                    Role = "Supplier",
+                    DashboardKey = "supplier",
+                    Status = "Active",
+                    SupplierId = supplier.SupplierId
+                });
+            }
+            else
+            {
+                user.Name = person;
+                if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Email = email;
+                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 10);
+                }
             }
         }
 

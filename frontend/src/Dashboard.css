@@ -1621,6 +1621,10 @@
   background: #c0392b;
   color: #fff;
 }
+.stock-sev.none {
+  background: #efefec;
+  color: #6f6f6f;
+}
 .stock-banner .mini-btn {
   margin-left: auto;
 }

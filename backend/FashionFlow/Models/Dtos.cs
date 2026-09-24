@@ -103,7 +103,10 @@ public record CheckoutRequest(
     // hosted page offers all of its methods.
     string? PaymentMethod,
     // Optional promo/voucher code (loyalty reward vouchers are RWD-xxxxxx).
-    string? PromoCode);
+    string? PromoCode,
+    // Optional client-generated idempotency key (one per checkout visit) —
+    // retries return the original order instead of creating a duplicate.
+    string? IdempotencyKey);
 
 public record MockConfirmRequest([Required] string OrderNumber);
 

@@ -53,6 +53,29 @@ public class PaymentsController(
         if (customer is null)
             return Unauthorized(new { message = "This account is not linked to a customer profile." });
 
+        // Idempotency: a retried or double-clicked checkout carries the
+        // client's key. If the first attempt already created the order,
+        // return it instead of cloning it (no duplicate FF- numbers, no
+        // double stock reservation).
+        IActionResult ExistingOrderResponse(Order existing, string method)
+        {
+            if (method == "cod") return StatusCode(201, new { orderNumber = existing.OrderNumber, cod = true });
+            if (method == "gcash") return StatusCode(201, new { orderNumber = existing.OrderNumber, qrPay = true, total = existing.Total });
+            if (existing.CheckoutSessionId is not null)
+                return Conflict(new { message = "This order is already being processed." });
+            if (env.IsDevelopment())
+                return StatusCode(201, new { orderNumber = existing.OrderNumber, checkoutUrl = $"{PublicBaseUrl}/#checkout/mock-pay/{existing.OrderNumber}/{method}", mock = true });
+            return StatusCode(503, new { message = "Online payments are not configured yet (missing PayMongo:SecretKey)." });
+        }
+
+        var idemKey = string.IsNullOrWhiteSpace(req.IdempotencyKey) ? null : req.IdempotencyKey.Trim();
+        if (idemKey is not null)
+        {
+            var existing = await db.Orders
+                .FirstOrDefaultAsync(o => o.IdempotencyKey == idemKey && o.CustomerId == customer.CustomerId);
+            if (existing is not null) return ExistingOrderResponse(existing, methodKey);
+        }
+
         // Merge duplicate lines and validate against live stock.
         var merged = req.Items.GroupBy(i => i.ProductId)
             .Select(g => (ProductId: g.Key, Quantity: g.Sum(i => i.Quantity)))
@@ -107,6 +130,7 @@ public class PaymentsController(
             CustomerId = customer.CustomerId,
             GuestEmail = customer.Email,
             ShippingAddress = req.ShippingAddress.Trim(),
+            IdempotencyKey = idemKey,
             ItemsSummary = string.Join(", ", merged.Select(m => $"{products[m.ProductId].Name} ×{m.Quantity}")),
             Subtotal = subtotal,
             Discount = discount,
@@ -134,7 +158,19 @@ public class PaymentsController(
         await Notifications.PushRoleAsync(db, "SalesStaff",
             $"New online order {orderNumber}", placedBody, "Order", "dashboard/sales/overview");
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (idemKey is not null)
+        {
+            // Lost a simultaneous race: the twin request committed first —
+            // serve its order instead of surfacing a constraint error.
+            var twin = await db.Orders
+                .FirstOrDefaultAsync(o => o.IdempotencyKey == idemKey && o.CustomerId == customer.CustomerId);
+            if (twin is not null) return ExistingOrderResponse(twin, methodKey);
+            throw;
+        }
 
         // Cash on Delivery: no gateway involved — reserve stock immediately,
         // but do not record payment received until courier delivers the package.

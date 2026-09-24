@@ -176,11 +176,8 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, IConfi
         }
         catch (Exception ex)
         {
-            // TEMP-DIAG: surface the exact verification failure on the login
-            // screen until Google sign-in is confirmed working, then revert
-            // to the generic message.
             logger.LogWarning("Google sign-in rejected: {Reason}", ex.Message);
-            return Unauthorized(new { message = $"Google sign-in failed ({ex.Message}) — please try again." });
+            return Unauthorized(new { message = "Google sign-in failed — please try again." });
         }
 
         if (!fb.EmailVerified)

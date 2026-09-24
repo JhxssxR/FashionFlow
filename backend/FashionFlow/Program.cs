@@ -81,6 +81,7 @@ using (var scope = app.Services.CreateScope())
     await DbSeed.BackfillVariantSiblingsAsync(db);
     await DbSeed.CleanupPendingCodOrdersAsync(db);
     await DbSeed.EnsureSupplierAccountsAsync(db);
+    await DbSeed.SyncSupplierPortalAccountsAsync(db);
     await DbSeed.EnsurePaymentSettingsAsync(db);
     await DbSeed.BackfillSupplierNotificationsAsync(db);
 }

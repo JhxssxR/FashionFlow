@@ -327,6 +327,16 @@ const OrderForm = () => {
   const [promoMsg, setPromoMsg] = useState('');
   const [promoErr, setPromoErr] = useState('');
   const [checkingPromo, setCheckingPromo] = useState(false);
+  // Synchronous double-submit guard: React state (busy) doesn't disable the
+  // button until re-render, so a second click in the same tick would POST
+  // twice and create a duplicate order. Refs mutate synchronously.
+  const submitting = useRef(false);
+  // One idempotency key per checkout visit — retries after an error return
+  // the original order instead of cloning it.
+  const [idempotencyKey] = useState(() =>
+    (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   const discount = promo?.discount || 0;
 
@@ -365,6 +375,8 @@ const OrderForm = () => {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError('');
     try {
@@ -374,7 +386,8 @@ const OrderForm = () => {
           shippingAddress: address,
           paymentMethod: method,
           items: cart.items.map((l) => ({ productId: l.id, quantity: l.quantity })),
-          promoCode: promo?.code
+          promoCode: promo?.code,
+          idempotencyKey
         }
       });
       if (res.cod) {
@@ -396,6 +409,7 @@ const OrderForm = () => {
     } catch (ex) {
       setError(ex.message);
       setBusy(false);
+      submitting.current = false;
     }
   };
 

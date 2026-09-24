@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
@@ -18,6 +18,8 @@ const PosTerminal = ({ products, customers, onCharged }) => {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  // Synchronous double-charge guard (same-tick clicks beat the disabled flag).
+  const charging = useRef(false);
 
   const customer = (customers || []).find((c) => String(c.id) === customerId);
   const subtotal = cart.reduce((s, l) => s + l.price * l.quantity, 0);
@@ -49,7 +51,8 @@ const PosTerminal = ({ products, customers, onCharged }) => {
   };
 
   const charge = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || charging.current) return;
+    charging.current = true;
     setBusy(true);
     setErr('');
     try {
@@ -70,6 +73,7 @@ const PosTerminal = ({ products, customers, onCharged }) => {
       setErr(ex.message);
     } finally {
       setBusy(false);
+      charging.current = false;
     }
   };
 

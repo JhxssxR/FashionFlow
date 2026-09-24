@@ -32,14 +32,20 @@ const NewPOForm = ({ suppliers, products, onDone, prefill }) => {
   const [busy, setBusy] = useState(false);
 
   // One-click reorder: the suggestions panel prefills product + qty (+ the
-  // suggested wholesale cost) and jumps to this page.
+  // suggested wholesale cost) and jumps to this page. The price comparison
+  // tool additionally pins the winning supplier + its best unit cost.
   useEffect(() => {
     if (!prefill) return;
     const id = String(prefill.productId);
     setProductId(id);
     setQuantity(String(prefill.quantity ?? ''));
-    const p = (products || []).find((x) => String(x.id) === id);
-    if (p) setUnitCost(Math.round(p.price * 0.65));
+    if (prefill.supplierId) setSupplierId(String(prefill.supplierId));
+    if (prefill.unitCost !== undefined && prefill.unitCost !== null && prefill.unitCost !== '') {
+      setUnitCost(String(prefill.unitCost));
+    } else {
+      const p = (products || []).find((x) => String(x.id) === id);
+      if (p) setUnitCost(Math.round(p.price * 0.65));
+    }
   }, [prefill, products]);
 
   const pickProduct = (id) => {
@@ -95,6 +101,60 @@ const NewPOForm = ({ suppliers, products, onDone, prefill }) => {
       {err && <ErrorNote message={err} />}
       {ok && <div className="form-ok">{ok}</div>}
     </form>
+  );
+};
+
+// Supplier price comparison: pick a product, see every supplier's best and
+// last unit costs side by side (bulk deals surface via the quantity behind
+// the best price), then order from the winner in one click.
+const PriceCompare = ({ products, onOrder }) => {
+  const [productId, setProductId] = useState('');
+  return (
+    <Panel title="Compare supplier prices" subtitle="Best and last unit cost per supplier, from real purchase orders">
+      <div className="inline-form" style={{ marginBottom: 12 }}>
+        <div className="form-row">
+          <select value={productId} onChange={(e) => setProductId(e.target.value)}>
+            <option value="">Choose a product…</option>
+            {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} — {p.variant}</option>)}
+          </select>
+        </div>
+      </div>
+      {productId ? <CompareTable productId={productId} onOrder={onOrder} /> : (
+        <div className="table-empty">
+          <strong className="table-empty-title">NO PRODUCT SELECTED</strong>
+          <span className="table-empty-note">Pick a product above to compare what each supplier charged for it, including bulk pricing.</span>
+        </div>
+      )}
+    </Panel>
+  );
+};
+
+const CompareTable = ({ productId, onOrder }) => {
+  const cmp = useApi(`/api/suppliers/price-comparison?productId=${productId}`, [productId]);
+  return (
+    <>
+      <ErrorNote message={cmp.error} />
+      {cmp.loading ? <Loading /> : (
+        <DataTable
+          keyField="supplierId"
+          emptyTitle="NO SUPPLIER HISTORY"
+          emptyNote="No purchase orders for this product yet — the first PO sets the benchmark."
+          columns={[
+            { key: 'supplier', label: 'Supplier', render: (r) => (<span>{r.supplier} {r.isBest ? <span className="stock-sev low">BEST PRICE</span> : (!r.hasHistory ? <span className="stock-sev none">NO HISTORY</span> : null)}</span>) },
+            { key: 'location', label: 'Location' },
+            { key: 'orders', label: 'POs' },
+            { key: 'best', label: 'Best cost', render: (r) => (r.bestUnitCost == null ? '—' : (<span>{peso(r.bestUnitCost)} <span style={{ color: '#8a8a8a' }}>at ×{r.bestQty}</span></span>)) },
+            { key: 'last', label: 'Last cost', render: (r) => (r.lastUnitCost == null ? '—' : (<span>{peso(r.lastUnitCost)} <span style={{ color: '#8a8a8a' }}>· {fmtDate(r.lastDate)}</span></span>)) },
+            { key: 'lead', label: 'Lead time', render: (r) => (r.leadDays == null ? '—' : `${r.leadDays} days`) },
+            { key: 'onTime', label: 'On-time', render: (r) => `${r.onTime}%` },
+            { key: 'rating', label: 'Rating', render: (r) => `★ ${r.rating}` },
+            { key: 'order', label: '', render: (r) => (<button className="mini-btn" onClick={() => onOrder(productId, r)}>ORDER</button>) }
+          ]}
+          rows={cmp.data?.rows || []}
+          pageSize={8}
+        />
+      )}
+    </>
   );
 };
 
@@ -173,7 +233,9 @@ const PurchasingDashboard = ({ user }) => {
             <>
               {poPrefill && (
                 <div className="form-ok">
-                  Reorder pre-filled from the low-stock suggestions — pick a supplier (suggested: {poPrefill.supplier}), review the quantity and send.
+                  {poPrefill.supplierId
+                    ? `Order pre-filled from price comparison — ${poPrefill.supplier} at ${peso(poPrefill.unitCost)}/unit. Review the quantity and send.`
+                    : `Reorder pre-filled from the low-stock suggestions — pick a supplier (suggested: ${poPrefill.supplier}), review the quantity and send.`}
                 </div>
               )}
               <div className="stat-grid">
@@ -212,6 +274,13 @@ const PurchasingDashboard = ({ user }) => {
                   </ResponsiveContainer>
                 )}
               </Panel>
+              <PriceCompare
+                products={products.data}
+                onOrder={(pid, r) => {
+                  setPoPrefill({ productId: pid, quantity: '', supplier: r.supplier, supplierId: r.supplierId, unitCost: r.bestUnitCost });
+                  goTo('orders');
+                }}
+              />
               <Panel title="Supplier directory" subtitle="Coordination contacts and performance">
                 <ErrorNote message={suppliers.error} />
                 {suppliers.loading ? <Loading /> : (

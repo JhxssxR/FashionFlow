@@ -4,6 +4,7 @@ using FashionFlow.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FashionFlow.Migrations
 {
     [DbContext(typeof(FashionFlowDbContext))]
-    partial class FashionFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924111536_SupplierPortalAccounts")]
+    partial class SupplierPortalAccounts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -244,9 +247,6 @@ namespace FashionFlow.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("IdempotencyKey")
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("ItemsSummary")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -295,10 +295,6 @@ namespace FashionFlow.Migrations
                     b.HasIndex("CheckoutSessionId");
 
                     b.HasIndex("CustomerId");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique()
-                        .HasFilter("[IdempotencyKey] IS NOT NULL");
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
