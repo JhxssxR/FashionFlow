@@ -1,19 +1,19 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
-// Firebase web config for Google sign-in. Paste your values from
-// Firebase Console → Project settings → Your apps (Web </>),
-// or set VITE_FIREBASE_* env vars / a .env file. Until filled in, the
-// login page shows a setup hint instead of calling Google.
+// Firebase web config comes from VITE_FIREBASE_* env vars (see .env.example
+// and keep real values in the local .env, which is gitignored). These keys
+// are public by design — Google locks them down via authorized domains in
+// Firebase Console, not by secrecy — but they don't belong in git history.
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyD-CS-coIO9tQrcRg7DmtokBZ_mMk27MyE',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'fashionflow-d506e.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'fashionflow-d506e',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:216960539178:web:f1322671e117f0cd688153'
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || ''
 };
 
 export const isFirebaseConfigured =
-  !Object.values(firebaseConfig).some((v) => typeof v === 'string' && v.startsWith('PASTE-'));
+  Object.values(firebaseConfig).every((v) => typeof v === 'string' && v.length > 0);
 
 let app = null;
 export function firebaseApp() {
