@@ -455,6 +455,52 @@ const AdminDashboard = ({ user }) => {
                 )}
               </Panel>
 
+              <Panel title="Revenue by item — last 30 days" subtitle="Which specific products brought the money in">
+                <ErrorNote message={sales.error} />
+                {sales.loading ? <Loading /> : (
+                  <>
+                    <DataTable
+                      keyField="id"
+                      emptyTitle="NO ITEM SALES YET"
+                      emptyNote="Once sales are recorded, every product's units and revenue appear here."
+                      columns={[
+                        { key: 'name', label: 'Item' },
+                        { key: 'variant', label: 'Variant' },
+                        { key: 'units', label: 'Units sold', render: (r) => <strong>{num(r.units)}</strong> },
+                        { key: 'revenue', label: 'Revenue', render: (r) => peso(r.revenue) },
+                        { key: 'lastSold', label: 'Last sold', render: (r) => fmtDate(r.lastSold) },
+                        {
+                          key: 'share', label: 'Share', render: (r) => (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ width: 90, height: 8, borderRadius: 99, background: '#efefec', overflow: 'hidden', display: 'inline-block' }}>
+                                <span style={{ display: 'block', height: '100%', width: `${r.share}%`, background: 'var(--accent-color)' }} />
+                              </span>
+                              {r.share}%
+                            </span>
+                          )
+                        }
+                      ]}
+                      rows={sales.data?.byProduct || []}
+                      pageSize={10}
+                    />
+                    <button
+                      className="mini-btn"
+                      onClick={() => downloadCsv('sales-by-item-30days.csv', [
+                        { key: 'name', label: 'Item' },
+                        { key: 'variant', label: 'Variant' },
+                        { key: 'units', label: 'Units sold' },
+                        { key: 'revenue', label: 'Revenue' },
+                        { key: 'lastSold', label: 'Last sold' },
+                        { key: 'orders', label: 'Orders' },
+                        { key: 'share', label: 'Share %' }
+                      ], sales.data?.byProduct || [])}
+                    >
+                      DOWNLOAD ITEMS CSV
+                    </button>
+                  </>
+                )}
+              </Panel>
+
               <SavedReportsPanel role="admin" defaultType="Sales" />
             </>
           );

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { api, saveAuth } from '../api/client';
+import { signInWithGoogle, isFirebaseConfigured } from '../api/firebase';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,6 +26,7 @@ const Login = ({ onBack }) => {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   const clearFieldError = (field) =>
     setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: '' } : prev));
@@ -81,6 +83,28 @@ const Login = ({ onBack }) => {
           : err.message || 'Something went wrong. Please try again.'
       );
       setBusy(false);
+    }
+  };
+
+  // Google sign-in (Firebase Auth): the Firebase ID token is verified by
+  // the backend, which signs in or auto-registers a customer account.
+  const handleGoogle = async () => {
+    setGoogleBusy(true);
+    setError('');
+    try {
+      const idToken = await signInWithGoogle();
+      const res = await api('/api/auth/google', { method: 'POST', body: { idToken } });
+      saveAuth({ token: res.token, user: res.user });
+      window.location.hash = `dashboard/${res.user.dashboardKey}`;
+    } catch (err) {
+      setError(
+        err?.code === 'auth/popup-closed-by-user'
+          ? 'Google sign-in was cancelled.'
+          : err.status === 429
+            ? 'Too many attempts — please wait a minute and try again.'
+            : err.message || 'Google sign-in failed. Please try again.'
+      );
+      setGoogleBusy(false);
     }
   };
 
@@ -257,6 +281,24 @@ const Login = ({ onBack }) => {
               {busy ? 'PLEASE WAIT…' : mode === 'signin' ? 'SIGN IN →' : 'CREATE ACCOUNT →'}
             </button>
           </form>
+
+          <div className="login-divider">OR</div>
+
+          {isFirebaseConfigured ? (
+            <button type="button" className="google-btn" onClick={handleGoogle} disabled={googleBusy || busy}>
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.3H12v4.5h6.5c-.1 1.1-.8 2.7-2.4 3.8l-.1.1 3.5 2.7.2.1c2.2-2 3.8-5 3.8-8.9z" />
+                <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.8-2.9c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.8-5l-.1.1-3.6 2.8v.1C3.5 21.4 7.4 24 12 24z" />
+                <path fill="#FBBC05" d="M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-.1-.1-3.6-2.8-.1.1C.5 8.6 0 10.2 0 12s.5 3.4 1.4 4.9l3.8-2.5z" />
+                <path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.7 1.1 15.2 0 12 0 7.4 0 3.5 2.6 1.4 6.8l3.8 2.9c1-2.9 3.7-5 6.8-5z" />
+              </svg>
+              {googleBusy ? 'CONNECTING…' : 'CONTINUE WITH GOOGLE'}
+            </button>
+          ) : (
+            <p className="field-hint" style={{ textAlign: 'center' }}>
+              Google sign-in needs your Firebase web config — see src/api/firebase.js.
+            </p>
+          )}
         </div>
 
         {/* Footer */}

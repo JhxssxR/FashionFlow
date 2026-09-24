@@ -1316,6 +1316,40 @@
   border-color: #999;
 }
 
+/* Google sign-in button (Firebase Auth) */
+.google-btn {
+  height: 48px;
+  background-color: #fff;
+  border: 1px solid #e2e2e2;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  width: 100%;
+}
+
+.google-btn:hover:not(:disabled) {
+  background-color: #f9f9f9;
+  border-color: #999;
+}
+
+.google-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.google-btn svg {
+  flex-shrink: 0;
+}
+
 /* Login Footer */
 .login-footer {
   text-align: center;

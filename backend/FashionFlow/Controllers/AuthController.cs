@@ -45,7 +45,7 @@ public static class AuthPayload
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogger<AuthController> logger) : ControllerBase
+public class AuthController(FashionFlowDbContext db, TokenService tokens, IConfiguration config, ILogger<AuthController> logger) : ControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]
@@ -152,5 +152,88 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, ILogge
 
         var (token, expiresAt) = tokens.CreateToken(user);
         return StatusCode(201, new { token, expiresAt, user = AuthPayload.For(user, customer) });
+    }
+
+    // Google sign-in (Firebase Auth): verifies the Firebase ID token, then
+    // signs in the matching account or auto-registers a customer (Google
+    // emails are pre-verified, so no activation step). Staff keep using
+    // email + password; an existing staff email still signs in here.
+    [HttpPost("google")]
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> Google(GoogleSignInRequest req)
+    {
+        var projectId = config["Firebase:ProjectId"];
+        if (string.IsNullOrWhiteSpace(projectId) || projectId.StartsWith("PASTE-"))
+            return StatusCode(503, new { message = "Google sign-in is not configured on the server yet." });
+        if (string.IsNullOrWhiteSpace(req.IdToken))
+            return BadRequest(new { message = "Missing Google sign-in token." });
+
+        FirebaseAccount fb;
+        try
+        {
+            fb = await FirebaseTokenVerifier.VerifyAsync(req.IdToken, projectId.Trim());
+        }
+        catch (Exception ex)
+        {
+            // TEMP-DIAG: surface the exact verification failure on the login
+            // screen until Google sign-in is confirmed working, then revert
+            // to the generic message.
+            logger.LogWarning("Google sign-in rejected: {Reason}", ex.Message);
+            return Unauthorized(new { message = $"Google sign-in failed ({ex.Message}) — please try again." });
+        }
+
+        if (!fb.EmailVerified)
+            return Unauthorized(new { message = "Your Google email is not verified — verify it with Google first." });
+
+        var email = fb.Email.Trim().ToLowerInvariant();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user is null)
+        {
+            var customer = await db.Customers.FirstOrDefaultAsync(c => c.Email == email);
+            if (customer is null)
+            {
+                customer = new Customer
+                {
+                    Name = fb.Name,
+                    Email = email,
+                    Tier = "Bronze",
+                    JoinedDate = DateOnly.FromDateTime(DateTime.Today)
+                };
+                db.Customers.Add(customer);
+                await db.SaveChangesAsync(); // need the CustomerId for the user link
+            }
+
+            user = new User
+            {
+                Name = string.IsNullOrWhiteSpace(customer.Name) ? fb.Name : customer.Name,
+                Email = email,
+                // Unusable password — this account signs in through Google.
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString(), workFactor: 10),
+                Role = "Customer",
+                DashboardKey = Roles.DashboardKeyFor("Customer"),
+                Status = "Active",
+                CustomerId = customer.CustomerId
+            };
+            db.Users.Add(user);
+            db.SystemLogs.Add(Audit.Log(email, "Customer account registered via Google sign-in", "Auth"));
+
+            await Notifications.PushRoleAsync(db, "Admin",
+                "New customer registered",
+                $"{user.Name} ({email}) joined via Google sign-in.",
+                "Account", "dashboard/admin");
+        }
+
+        if (user.Status != "Active")
+            return StatusCode(403, new { message = "This account is not active yet — an administrator must activate it first." });
+
+        var (token, expiresAt) = tokens.CreateToken(user);
+        db.SystemLogs.Add(Audit.Log(user.Email, $"Signed in with Google ({Roles.RoleLabel(user.Role)})", "Auth"));
+        await db.SaveChangesAsync();
+
+        Customer? profile = user.CustomerId is int cid
+            ? await db.Customers.FindAsync(cid)
+            : null;
+        return Ok(new { token, expiresAt, user = AuthPayload.For(user, profile) });
     }
 }

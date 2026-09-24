@@ -45,9 +45,41 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
             };
         }).ToList();
 
+        // Item-level revenue: which specific products brought the money in.
+        var itemRows = await db.Sales.Include(s => s.Product)
+            .Where(s => s.Date >= start)
+            .Select(s => new
+            {
+                s.ProductId,
+                Name = s.Product != null ? s.Product.Name : "Unknown item",
+                Variant = s.Product != null ? s.Product.Variant : "—",
+                s.Quantity,
+                s.TotalAmount,
+                s.ReceiptNo,
+                s.Date
+            })
+            .ToListAsync();
+        var windowRevenue = itemRows.Sum(r => r.TotalAmount);
+        var byProduct = itemRows
+            .GroupBy(r => new { r.ProductId, r.Name, r.Variant })
+            .Select(g => new
+            {
+                id = g.Key.ProductId,
+                name = g.Key.Name,
+                variant = g.Key.Variant,
+                units = g.Sum(x => x.Quantity),
+                revenue = g.Sum(x => x.TotalAmount),
+                orders = g.Select(x => x.ReceiptNo).Distinct().Count(),
+                lastSold = g.Max(x => x.Date).ToString("yyyy-MM-dd"),
+                share = windowRevenue == 0 ? 0 : Math.Round(g.Sum(x => x.TotalAmount) * 100 / windowRevenue, 1)
+            })
+            .OrderByDescending(x => x.revenue)
+            .ToList();
+
         return Ok(new
         {
             series,
+            byProduct,
             totals = new
             {
                 revenue = series.Sum(s => s.revenue),

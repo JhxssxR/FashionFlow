@@ -7,6 +7,9 @@ public record LoginRequest(
     [Required, EmailAddress] string Email,
     [Required] string Password);
 
+public record GoogleSignInRequest(
+    [Required] string IdToken);
+
 public record RegisterRequest(
     [Required] string Name,
     [Required, EmailAddress] string Email,
