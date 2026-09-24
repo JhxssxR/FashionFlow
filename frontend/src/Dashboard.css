@@ -415,6 +415,22 @@
   flex-direction: column;
   gap: 6px;
   text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(205, 168, 88, 0.55) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card {
+    transition: none;
+  }
+  .stat-card:hover {
+    transform: none;
+  }
 }
 
 .stat-label {
