@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext.jsx';
+import { clearCartStorage } from '../context/cartEvents.js';
 import { getAuth, clearAuth } from '../api/client';
 import NotificationBell from './NotificationBell.jsx';
 
@@ -37,6 +38,7 @@ const Header = ({ onLoginClick }) => {
 
   const signOut = () => {
     clearAuth();
+    clearCartStorage();
     setAuthTick((t) => t + 1); // re-render now; no hashchange fires if already on ''
     if (window.location.hash) window.location.hash = '';
   };

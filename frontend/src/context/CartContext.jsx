@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { CART_KEY, CART_CLEARED_EVENT } from './cartEvents.js';
 
 // Storefront shopping cart. Persisted in localStorage so a refresh (or a
 // round-trip to PayMongo's hosted payment page) keeps the basket.
 const CartContext = createContext(null);
-const CART_KEY = 'ff_cart';
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState(() => {
@@ -18,6 +18,14 @@ export function CartProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(CART_KEY, JSON.stringify(items));
   }, [items]);
+
+  // A logout anywhere resets the in-memory basket (storage is wiped by
+  // clearCartStorage in the same call).
+  useEffect(() => {
+    const reset = () => setItems([]);
+    window.addEventListener(CART_CLEARED_EVENT, reset);
+    return () => window.removeEventListener(CART_CLEARED_EVENT, reset);
+  }, []);
 
   const add = (product, qty = 1) => {
     setItems((prev) => {

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { clearCartStorage } from '../context/cartEvents.js';
 
 // Same-origin API client (production serves the SPA from the same app;
 // in dev, Vite's server.proxy forwards /api to the backend — see vite.config.js).
@@ -49,6 +50,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   if (res.status === 401 && auth) {
     // Expired/invalid token: drop it and bounce to the login page.
     clearAuth();
+    clearCartStorage();
     window.location.hash = 'login';
     throw new ApiError('Your session expired — please sign in again.', 401);
   }

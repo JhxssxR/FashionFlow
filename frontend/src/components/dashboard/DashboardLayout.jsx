@@ -1,5 +1,6 @@
 import React from 'react';
 import { clearAuth } from '../../api/client';
+import { clearCartStorage } from '../../context/cartEvents.js';
 import { initialsOf } from '../../utils';
 import NotificationBell from '../NotificationBell.jsx';
 
@@ -146,6 +147,7 @@ const DashboardLayout = ({ role, user, children }) => {
   const logout = (e) => {
     e.preventDefault();
     clearAuth();
+    clearCartStorage();
     window.location.hash = 'login';
   };
 
