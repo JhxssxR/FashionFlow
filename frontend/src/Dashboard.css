@@ -1808,24 +1808,16 @@
   }
 }
 @media (max-width: 640px) {
+  /* Small phones: stat cards stack full-width — nothing cut off, no
+     hidden sideways scrolling. Tablets keep 2 columns (see 860px). */
   .stat-grid {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    margin: 0 -16px;
-    padding: 0 16px 8px;
-  }
-  .stat-grid::-webkit-scrollbar {
-    display: none;
+    display: grid;
+    grid-template-columns: 1fr;
   }
   .stat-grid .stat-card,
   .stat-grid .sk-card {
-    min-width: 232px;
-    max-width: 232px;
-    scroll-snap-align: start;
-    flex-shrink: 0;
+    min-width: 0;
+    max-width: none;
   }
 }
 @media (max-width: 860px) {

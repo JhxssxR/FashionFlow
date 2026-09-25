@@ -202,6 +202,11 @@ const InventoryDashboard = ({ user }) => {
   const [adjustQty, setAdjustQty] = useState('');
   const [adjustBusy, setAdjustBusy] = useState(false);
   const [adjustErr, setAdjustErr] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteErr, setDeleteErr] = useState('');
+  const [productFilter, setProductFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const bump = () => setTick((t) => t + 1);
 
   const advanceOrder = async (row) => {
@@ -223,6 +228,22 @@ const InventoryDashboard = ({ user }) => {
     setAdjustTarget(product);
     setAdjustQty(String(product.stock));
     setAdjustErr('');
+  };
+
+  const removeProduct = async () => {
+    if (!deleteTarget || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteErr('');
+    try {
+      await api(`/api/products/${deleteTarget.id}`, { method: 'DELETE' });
+      setAdjustMsg(`${deleteTarget.name} (${deleteTarget.variant}) removed from the catalog.`);
+      setDeleteTarget(null);
+      bump();
+    } catch (ex) {
+      setDeleteErr(ex.message);
+    } finally {
+      setDeleteBusy(false);
+    }
   };
 
   const saveAdjust = async () => {
@@ -249,6 +270,13 @@ const InventoryDashboard = ({ user }) => {
   const incoming = (deliveries.data || []).filter((p) => p.status === 'In Transit' || p.status === 'Pending');
   const deliveredRows = (deliveries.data || []).filter((p) => p.status === 'Delivered').slice(0, 8);
 
+  // Products table filters: pick a style to see only its variants, and/or
+  // narrow by ERP category. Pagination counts the filtered rows.
+  const productNames = [...new Set((products.data || []).map((p) => p.name))].sort();
+  const filteredProducts = (products.data || []).filter((p) =>
+    (!productFilter || p.name === productFilter) &&
+    (!categoryFilter || p.category === categoryFilter));
+
   return (
     <DashboardLayout role="inventory" user={user}>
       {(page) => {
@@ -266,6 +294,23 @@ const InventoryDashboard = ({ user }) => {
               <Panel title="Products & variants" subtitle="Product catalog with size/variant management">
                 {adjustMsg && <div className="form-ok">{adjustMsg}</div>}
                 <ErrorNote message={products.error} />
+                <div className="inline-form" style={{ marginBottom: 12 }}>
+                  <div className="form-row">
+                    <select value={productFilter} onChange={(e) => setProductFilter(e.target.value)} aria-label="Filter by product">
+                      <option value="">All products…</option>
+                      {productNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label="Filter by category">
+                      <option value="">All categories…</option>
+                      {['Outerwear', 'Dresses', 'Bottoms', 'Shirts', 'Tops'].map((c) => <option key={c}>{c}</option>)}
+                    </select>
+                    {(productFilter || categoryFilter) && (
+                      <button type="button" className="mini-btn" onClick={() => { setProductFilter(''); setCategoryFilter(''); }}>
+                        CLEAR
+                      </button>
+                    )}
+                  </div>
+                </div>
                 {products.loading && !products.data ? <Loading /> : (
                   <DataTable
                     keyField="id"
@@ -278,11 +323,14 @@ const InventoryDashboard = ({ user }) => {
                       { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> },
                       {
                         key: 'actions', label: '', render: (r) => (
-                          <button className="mini-btn" onClick={() => openAdjust(r)}>ADJUST</button>
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                            <button className="mini-btn" onClick={() => openAdjust(r)}>ADJUST</button>
+                            <button type="button" className="link-btn danger" onClick={() => { setDeleteTarget(r); setDeleteErr(''); }}>DELETE</button>
+                          </div>
                         )
                       }
                     ]}
-                    rows={products.data || []}
+                    rows={filteredProducts}
                     pageSize={10}
                   />
                 )}
@@ -316,6 +364,25 @@ const InventoryDashboard = ({ user }) => {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </div>
+              )}
+              {deleteTarget && (
+                <div className="product-modal-overlay" onClick={() => !deleteBusy && setDeleteTarget(null)}>
+                  <div className="receipt-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Remove product">
+                    <button className="product-modal-close" onClick={() => !deleteBusy && setDeleteTarget(null)} aria-label="Close">×</button>
+                    <h3>Remove product?</h3>
+                    <p className="receipt-meta">{deleteTarget.name} — {deleteTarget.variant} · {peso(deleteTarget.price)} · {deleteTarget.stock} units</p>
+                    <p className="receipt-meta">It leaves the catalog and storefront at once. Sales history and reports are kept.</p>
+                    {deleteErr && <ErrorNote message={deleteErr} />}
+                    <div className="verify-btns center" style={{ marginTop: 16 }}>
+                      <button type="button" className="mini-btn" disabled={deleteBusy} onClick={() => setDeleteTarget(null)}>
+                        KEEP IT
+                      </button>
+                      <button type="button" className="mini-btn verify-no" disabled={deleteBusy} onClick={removeProduct}>
+                        {deleteBusy ? 'REMOVING…' : 'REMOVE'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
