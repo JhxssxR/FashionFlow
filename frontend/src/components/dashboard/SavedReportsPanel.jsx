@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Panel, DataTable, Loading, ErrorNote, StatusBadge } from './DashboardShared';
+import { Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
 import { useApi, api } from '../../api/client';
 import { fmtDateTime, downloadCsv } from '../../utils';
 
@@ -155,41 +155,25 @@ export const SavedReportsPanel = ({
           emptyNote="Click '+ GENERATE REPORT' or a quick preset above to generate and archive formal audit reports."
           columns={[
             { key: 'title', label: 'Title' },
-            {
-              key: 'type',
-              label: 'Type',
-              render: (r) => (
-                <StatusBadge
-                  status={
-                    r.type === 'Financial'
-                      ? 'Active'
-                      : r.type === 'Sales'
-                      ? 'Paid'
-                      : r.type === 'Inventory'
-                      ? 'Shipped'
-                      : 'Pending'
-                  }
-                />
-              )
-            },
+            { key: 'type', label: 'Type' },
             { key: 'date', label: 'Generated', render: (r) => fmtDateTime(r.date) },
             { key: 'generatedBy', label: 'By' },
             {
               key: 'actions',
               label: 'Action',
               render: (r) => (
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 14 }}>
                   <button
-                    className="mini-btn"
-                    style={{ padding: '3px 8px', fontSize: 11 }}
+                    type="button"
+                    className="link-btn"
                     onClick={() => exportReport(r)}
                   >
                     EXPORT
                   </button>
                   {canDelete && (
                     <button
-                      className="mini-btn secondary"
-                      style={{ padding: '3px 8px', fontSize: 11, color: '#c0564f' }}
+                      type="button"
+                      className="link-btn danger"
                       onClick={() => deleteReport(r.id, r.title)}
                     >
                       DELETE
