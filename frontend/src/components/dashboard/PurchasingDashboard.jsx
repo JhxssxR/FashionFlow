@@ -293,7 +293,8 @@ const PurchasingDashboard = ({ user }) => {
                       { key: 'contact', label: 'Contact person' },
                       { key: 'email', label: 'Email' },
                       { key: 'category', label: 'Specialty' },
-                      { key: 'rating', label: 'Rating', render: (r) => `★ ${r.rating}` }
+                      { key: 'rating', label: 'Rating', render: (r) => `★ ${r.rating}` },
+                      { key: 'best', label: 'Best price', render: (r) => (r.bestCost == null ? '—' : `${peso(r.bestCost)} · ${r.bestProduct}`) }
                     ]}
                     rows={suppliers.data || []}
                     pageSize={10}
@@ -477,7 +478,8 @@ const PurchasingDashboard = ({ user }) => {
                     { key: 'name', label: 'Supplier' },
                     { key: 'contact', label: 'Contact person' },
                     { key: 'email', label: 'Email' },
-                    { key: 'category', label: 'Specialty' }
+                    { key: 'category', label: 'Specialty' },
+                    { key: 'best', label: 'Best price', render: (r) => (r.bestCost == null ? '—' : `${peso(r.bestCost)} · ${r.bestProduct}`) }
                   ]}
                   rows={suppliers.data || []}
                   pageSize={10}

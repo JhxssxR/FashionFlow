@@ -24,6 +24,13 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
             .Select(p => new { p.SupplierId, p.Eta, p.DeliveredDate })
             .ToListAsync();
 
+        // Cheapest historical unit cost per supplier (any product) so the
+        // directory doubles as a quick price reference for purchasing.
+        var quotes = await db.PurchaseOrders.Include(p => p.Product)
+            .Where(p => p.Status != "Cancelled")
+            .Select(p => new { p.SupplierId, p.UnitCost, Product = p.Product!.Name })
+            .ToListAsync();
+
         var rows = await db.Suppliers.OrderBy(s => s.Name).ToListAsync();
         return Ok(rows.Select(s =>
         {
@@ -35,6 +42,7 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
             var rating = mine.Count == 0
                 ? s.Rating
                 : (decimal)Math.Round(onTimeCount * 5.0 / mine.Count, 1);
+            var best = quotes.Where(q => q.SupplierId == s.SupplierId).OrderBy(q => q.UnitCost).FirstOrDefault();
             return new
             {
                 id = s.SupplierId,
@@ -44,7 +52,9 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
                 s.Category,
                 s.Address,
                 rating,
-                onTime
+                onTime,
+                bestCost = best?.UnitCost,
+                bestProduct = best?.Product
             };
         }));
     }
