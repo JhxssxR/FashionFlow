@@ -6,7 +6,7 @@ import {
 import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, StockAlertBanner } from './DashboardShared';
 import SavedReportsPanel from './SavedReportsPanel';
-import { useApi, api } from '../../api/client';
+import { useApi, api, getAuth } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
 
 const getNextDeliveryStep = (order) => {
@@ -50,18 +50,58 @@ const movementSeries = (data) => (
 );
 
 const AddProductForm = ({ onDone }) => {
-  const empty = { name: '', variant: '', price: '', category: 'Outerwear', storefrontCategory: 'Outerwear', stock: '', imageUrl: '' };
+  const empty = { name: '', variant: '', price: '', category: 'Outerwear', storefrontCategory: 'Outerwear', stock: '' };
   const [form, setForm] = useState(empty);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [ok, setOk] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const pickImage = (e) => {
+    const f = e.target.files?.[0];
+    setErr('');
+    if (!f) return;
+    if (!f.type.startsWith('image/')) {
+      setErr('Choose an image file (JPG, PNG, WebP or GIF).');
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setErr('Image must be 5MB or less.');
+      return;
+    }
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(f);
+    setImagePreview(URL.createObjectURL(f));
+  };
+
+  const uploadImage = async (file) => {
+    const auth = getAuth();
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/products/upload-image', {
+      method: 'POST',
+      headers: { ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {}) },
+      body: fd
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.message || `Image upload failed (${res.status}).`);
+    return data.imageUrl;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+    if (!imageFile) {
+      setErr('Attach a product photo first.');
+      return;
+    }
     setBusy(true);
     setErr('');
+    setOk('');
     try {
+      const imageUrl = await uploadImage(imageFile);
       await api('/api/products', {
         method: 'POST',
         body: {
@@ -72,17 +112,40 @@ const AddProductForm = ({ onDone }) => {
           stock: Number(form.stock),
           category: form.category,
           storefrontCategory: form.storefrontCategory,
-          imageUrl: form.imageUrl,
+          imageUrl,
           isNew: true
         }
       });
-      setForm(empty);
+      setOk(`${form.name} (${form.variant}) added with its photo.`);
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImageFile(null);
+      setImagePreview('');
       onDone();
     } catch (ex) {
       setErr(ex.message);
     } finally {
       setBusy(false);
     }
+  };
+
+  // Another colour/size of the same style: keep everything shoppers see as
+  // one product (name, categories, price) and blank only the variant fields.
+  const addVariant = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview('');
+    setForm((f) => ({ ...f, variant: '', stock: '' }));
+    setOk('');
+    setErr('');
+  };
+
+  const startFresh = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview('');
+    setForm(empty);
+    setOk('');
+    setErr('');
   };
 
   return (
@@ -100,10 +163,25 @@ const AddProductForm = ({ onDone }) => {
         <select value={form.storefrontCategory} onChange={set('storefrontCategory')}>
           {['Women', 'Men', 'Outerwear'].map((c) => <option key={c}>{c}</option>)}
         </select>
-        <input placeholder="Image URL (verify it loads)" value={form.imageUrl} onChange={set('imageUrl')} required />
+        <input type="file" accept="image/*" onChange={pickImage} aria-label="Product photo" />
         <button className="mini-btn" type="submit" disabled={busy}>{busy ? 'SAVING…' : '+ ADD PRODUCT'}</button>
       </div>
+      {imagePreview && (
+        <div className="form-row">
+          <img src={imagePreview} alt="Product photo preview" style={{ width: 72, height: 88, objectFit: 'cover', borderRadius: 8, border: '1px solid #e7e7e4' }} />
+          <span className="panel-subtitle">Photo attached — it uploads when you save.</span>
+        </div>
+      )}
       {err && <ErrorNote message={err} />}
+      {ok && (
+        <div className="form-ok" role="status">
+          {ok}
+          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="mini-btn" onClick={addVariant}>+ ADD ANOTHER VARIANT</button>
+            <button type="button" className="mini-btn" onClick={startFresh}>NEW PRODUCT</button>
+          </div>
+        </div>
+      )}
     </form>
   );
 };

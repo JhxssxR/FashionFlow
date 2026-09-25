@@ -41,6 +41,33 @@ public class ProductsController(FashionFlowDbContext db) : ControllerBase
         return Ok(rows);
     }
 
+    // Product photo upload for the catalog form: validates type + size,
+    // stores under wwwroot/uploads/products with a random filename (no path
+    // traversal possible) and returns the URL to save on the product.
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "Admin,InventoryManager")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> UploadImage(IFormFile file, [FromServices] IWebHostEnvironment env)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "Choose an image file first." });
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(new { message = "Image must be 5MB or less." });
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Only image files (JPG, PNG, WebP, GIF)." });
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!new[] { ".jpg", ".jpeg", ".png", ".webp", ".gif" }.Contains(ext))
+            return BadRequest(new { message = "Only JPG, PNG, WebP or GIF images." });
+
+        var dir = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads", "products");
+        Directory.CreateDirectory(dir);
+        var name = $"{Guid.NewGuid():N}{ext}";
+        await using var fs = System.IO.File.Create(Path.Combine(dir, name));
+        await file.CopyToAsync(fs);
+        return Ok(new { imageUrl = $"/uploads/products/{name}" });
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,InventoryManager")]
     public async Task<IActionResult> Create(SaveProductRequest req)
