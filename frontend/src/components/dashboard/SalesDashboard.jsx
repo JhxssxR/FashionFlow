@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, SkeletonCards, CountdownChip } from './DashboardShared';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, Pager, SkeletonCards, CountdownChip } from './DashboardShared';
 import { useApi, api } from '../../api/client';
 import { peso, peso2, num, CHART_COLORS, fmtTime, fmtDate } from '../../utils';
 
@@ -20,6 +20,15 @@ const PosTerminal = ({ products, customers, onCharged }) => {
   const [busy, setBusy] = useState(false);
   // Synchronous double-charge guard (same-tick clicks beat the disabled flag).
   const charging = useRef(false);
+  // Product grid pages through 15 at a time (3×5) so the terminal stays
+  // compact without half-empty rows.
+  const [posPage, setPosPage] = useState(1);
+  const POS_PAGE_SIZE = 15;
+
+  const productList = products || [];
+  const posPageCount = Math.max(1, Math.ceil(productList.length / POS_PAGE_SIZE));
+  const posSafe = Math.min(posPage, posPageCount);
+  const posShown = productList.slice((posSafe - 1) * POS_PAGE_SIZE, posSafe * POS_PAGE_SIZE);
 
   const customer = (customers || []).find((c) => String(c.id) === customerId);
   const subtotal = cart.reduce((s, l) => s + l.price * l.quantity, 0);
@@ -81,7 +90,7 @@ const PosTerminal = ({ products, customers, onCharged }) => {
     <div className="panel-grid panel-grid-2-1">
       <Panel title="POS terminal" subtitle="Tap a product to add it to the cart">
         <div className="pos-grid">
-          {(products || []).map((p) => (
+          {posShown.map((p) => (
             <button key={p.id} className="pos-product" onClick={() => addToCart(p)} disabled={p.stock < 1}>
               <strong>{p.name}</strong>
               <span>{p.variant} · {p.stock} left</span>
@@ -89,6 +98,7 @@ const PosTerminal = ({ products, customers, onCharged }) => {
             </button>
           ))}
         </div>
+        <Pager page={posSafe} pageCount={posPageCount} total={productList.length} pageSize={POS_PAGE_SIZE} onPage={setPosPage} />
       </Panel>
       <Panel title="Cart" subtitle={customer ? `Serving ${customer.name} (${customer.tier})` : 'Walk-in customer'} className="pos-cart-panel">
         {result ? (
