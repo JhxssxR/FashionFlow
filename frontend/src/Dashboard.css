@@ -138,11 +138,11 @@
 /* Destructive action gets its own colour so it never blends in with
    plain navigation links (his ask: "the log out should be red"). */
 .dash-signout {
-  color: #e2606c;
+  color: #e88a92;
 }
 
 .dash-signout:hover {
-  color: #ff8291;
+  color: #ffb3bb;
 }
 
 /* ---------- Main area ---------- */
@@ -535,7 +535,7 @@
 }
 
 .link-btn.danger {
-  color: #c0564f;
+  color: #d1766e;
 }
 
 .panel-footnote {
@@ -600,7 +600,7 @@
   background: #faf9f7;
 }
 
-.danger-text { color: #c0564f; }
+.danger-text { color: #d1766e; }
 .warn-text { color: #b89547; }
 
 /* ---------- Status badges ---------- */
@@ -617,7 +617,7 @@
 .status-ok { background: #e6f4ec; color: #2f7d55; }
 .status-info { background: #ece9fb; color: #5d43d6; }
 .status-warn { background: #faf0dc; color: #a07c22; }
-.status-bad { background: #fae7e5; color: #b04a43; }
+.status-bad { background: #fae7e5; color: #c9827b; }
 .status-neutral { background: #efefec; color: #6f6f6f; }
 
 /* ---------- Legend ---------- */
@@ -921,7 +921,7 @@
 /* ---------- Login additions ---------- */
 .login-error {
   font-size: 0.78rem;
-  color: #b04a43;
+  color: #c9827b;
   background: #fae7e5;
   border-radius: 8px;
   padding: 10px 14px;
@@ -992,12 +992,12 @@
 
 .form-group input.input-error,
 .form-group input.input-error:focus {
-  border-color: #b04a43;
+  border-color: #c9827b;
 }
 
 .field-error {
   font-size: 0.72rem;
-  color: #b04a43;
+  color: #c9827b;
 }
 
 .login-divider {
@@ -1302,7 +1302,7 @@
 .api-error {
   background: #fdf1f0;
   border: 1px solid #f0c9c6;
-  color: #a03d36;
+  color: #b9746d;
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 13px;
@@ -1584,7 +1584,7 @@
 }
 .countdown-chip.urgent {
   background: #fae7e5;
-  color: #b04a43;
+  color: #c9827b;
 }
 .countdown-chip.expired {
   background: #efefec;
@@ -1617,7 +1617,7 @@
 .stock-banner.critical,
 .stock-banner.out {
   background: #fdf0ef;
-  border-color: #efc5c1;
+  border-color: #f3d5d1;
 }
 .stock-banner-info {
   flex: 1 1 160px;
@@ -1740,8 +1740,8 @@
 }
 .mini-btn.verify-no {
   background: #fff;
-  color: #b04a43;
-  border: 1px solid #efc5c1;
+  color: #c9827b;
+  border: 1px solid #f3d5d1;
 }
 .mini-btn.verify-no:hover {
   background: #b04a43;

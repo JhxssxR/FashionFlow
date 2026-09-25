@@ -960,7 +960,7 @@
 }
 
 .login-link-btn.signout-btn:hover {
-  color: #c0564f;
+  color: #d1766e;
   opacity: 1;
 }
 
@@ -1522,7 +1522,7 @@
 }
 
 .account-dropdown .account-dropdown-signout {
-  color: #c0392b;
+  color: #d1766e;
   border-top: 1px solid #f0f0ed;
 }
 
@@ -1985,7 +1985,7 @@
 .product-modal-stock {
   margin: 8px 0 0;
   font-size: 0.75rem;
-  color: #b04a43;
+  color: #c9827b;
 }
 
 @media (max-width: 640px) {
