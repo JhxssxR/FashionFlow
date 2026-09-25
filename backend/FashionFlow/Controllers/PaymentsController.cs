@@ -53,6 +53,13 @@ public class PaymentsController(
         if (customer is null)
             return Unauthorized(new { message = "This account is not linked to a customer profile." });
 
+        // Remember the typed address for next time (Google sign-ups never
+        // gave one): fill the profile street only while it has no address
+        // yet, so structured signup addresses are never clobbered. The next
+        // checkout then prefills it via /api/auth/me.
+        if (string.IsNullOrWhiteSpace(customer.Address) && !string.IsNullOrWhiteSpace(req.ShippingAddress))
+            customer.Address = req.ShippingAddress.Trim();
+
         // Idempotency: a retried or double-clicked checkout carries the
         // client's key. If the first attempt already created the order,
         // return it instead of cloning it (no duplicate FF- numbers, no
