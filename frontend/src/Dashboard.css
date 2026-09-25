@@ -26,6 +26,7 @@
 .dash-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 22px 24px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -127,6 +128,7 @@
   letter-spacing: 1.5px;
   color: #8a8a8a;
   transition: color 0.15s ease;
+  text-align: center;
 }
 
 .dash-back-link:hover {
@@ -164,9 +166,9 @@
   display: none;
 }
 
-/* Hamburger — only shown on small screens (see the media queries below) */
+/* Hamburger — toggles the drawer on phones, collapses the sidebar on desktop */
 .dash-menu-btn {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 38px;
@@ -177,6 +179,13 @@
   color: #111;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+/* Desktop sidebar collapse (all roles share DashboardLayout). */
+@media (min-width: 861px) {
+  .dash-shell.nav-collapsed .dash-sidebar {
+    display: none;
+  }
 }
 
 .dash-backdrop {
@@ -1716,6 +1725,9 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+.verify-btns.center {
+  justify-content: center;
 }
 .mini-btn.verify-ok {
   background: #2e6b4a;

@@ -46,7 +46,7 @@ const ROLE_CONFIG = {
     activePage: 'overview'
   },
   sales: {
-    label: 'Sales Staff — POS',
+    label: 'Sales Staff',
     roleTag: 'POS',
     pages: [
       { id: 'overview', label: 'Today\u2019s Sales' },
@@ -112,6 +112,16 @@ const DashboardLayout = ({ role, user, children }) => {
   const config = ROLE_CONFIG[role] || ROLE_CONFIG.admin;
   const [activePage, setActivePage] = React.useState(() => getActivePageFromHash(config, role));
   const [navOpen, setNavOpen] = React.useState(false);
+  const [confirmSignout, setConfirmSignout] = React.useState(false);
+  // Desktop sidebar collapse (persisted); mobile keeps the slide-over drawer.
+  const [collapsed, setCollapsed] = React.useState(() => {
+    try {
+      return localStorage.getItem('ff_nav_collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [isMobile, setIsMobile] = React.useState(() => window.matchMedia('(max-width: 860px)').matches);
 
   React.useEffect(() => {
     const handleHash = () => {
@@ -132,6 +142,36 @@ const DashboardLayout = ({ role, user, children }) => {
     return () => { document.body.style.overflow = prev; };
   }, [navOpen]);
 
+  // Escape closes the sign-out confirmation.
+  React.useEffect(() => {
+    if (!confirmSignout) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setConfirmSignout(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [confirmSignout]);
+
+  React.useEffect(() => {
+    const mq = window.matchMedia('(max-width: 860px)');
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const toggleNav = () => {
+    if (isMobile) {
+      setNavOpen((o) => !o);
+    } else {
+      setCollapsed((c) => {
+        try {
+          localStorage.setItem('ff_nav_collapsed', c ? '0' : '1');
+        } catch {
+          // private mode — collapse just won't persist
+        }
+        return !c;
+      });
+    }
+  };
+
   const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
 
   const setPage = (pageId) => {
@@ -144,15 +184,14 @@ const DashboardLayout = ({ role, user, children }) => {
     window.location.hash = '';
   };
 
-  const logout = (e) => {
-    e.preventDefault();
+  const logout = () => {
     clearAuth();
     clearCartStorage();
     window.location.hash = 'login';
   };
 
   return (
-    <div className={`dash-shell${navOpen ? ' nav-open' : ''}`}>
+    <div className={`dash-shell${navOpen ? ' nav-open' : ''}${!isMobile && collapsed ? ' nav-collapsed' : ''}`}>
       {navOpen && <div className="dash-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className="dash-sidebar">
         <a href="#" className="dash-brand" onClick={goStore}>
@@ -181,7 +220,7 @@ const DashboardLayout = ({ role, user, children }) => {
               <span>{config.label}</span>
             </div>
           </div>
-          <a href="#" className="dash-back-link dash-signout" onClick={logout}>
+          <a href="#" className="dash-back-link dash-signout" onClick={(e) => { e.preventDefault(); setConfirmSignout(true); }}>
             SIGN OUT
           </a>
           <a href="#" className="dash-back-link" onClick={goStore}>
@@ -195,11 +234,13 @@ const DashboardLayout = ({ role, user, children }) => {
           <button
             type="button"
             className="dash-menu-btn"
-            aria-label={navOpen ? 'Close menu' : 'Open menu'}
-            onClick={() => setNavOpen((o) => !o)}
+            aria-label={isMobile ? (navOpen ? 'Close menu' : 'Open menu') : (collapsed ? 'Show sidebar' : 'Hide sidebar')}
+            onClick={toggleNav}
           >
-            {navOpen ? (
+            {isMobile && navOpen ? (
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></svg>
+            ) : !isMobile && collapsed ? (
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="9" y1="4" x2="9" y2="20" /><polyline points="13.5 12 15.5 10 13.5 8" /></svg>
             ) : (
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="17" x2="20" y2="17" /></svg>
             )}
@@ -221,6 +262,25 @@ const DashboardLayout = ({ role, user, children }) => {
         </header>
         <main className="dash-content">{children(activePage, setActivePage)}</main>
       </div>
+      {confirmSignout && (
+        <div className="product-modal-overlay" onClick={() => setConfirmSignout(false)}>
+          <div className="receipt-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Confirm sign out">
+            <button className="product-modal-close" onClick={() => setConfirmSignout(false)} aria-label="Close">×</button>
+            <h3>Sign out?</h3>
+            <p className="receipt-meta">
+              {user?.name ? `${user.name}, you` : 'You'} will be signed out and returned to the login page.
+            </p>
+            <div className="verify-btns center" style={{ marginTop: 16 }}>
+              <button type="button" className="mini-btn" onClick={() => setConfirmSignout(false)}>
+                STAY SIGNED IN
+              </button>
+              <button type="button" className="mini-btn verify-no" onClick={logout}>
+                SIGN OUT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
