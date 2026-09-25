@@ -120,6 +120,10 @@ const InventoryDashboard = ({ user }) => {
   const [busyOrderId, setBusyOrderId] = useState('');
   const [orderErr, setOrderErr] = useState('');
   const [adjustMsg, setAdjustMsg] = useState('');
+  const [adjustTarget, setAdjustTarget] = useState(null);
+  const [adjustQty, setAdjustQty] = useState('');
+  const [adjustBusy, setAdjustBusy] = useState(false);
+  const [adjustErr, setAdjustErr] = useState('');
   const bump = () => setTick((t) => t + 1);
 
   const advanceOrder = async (row) => {
@@ -137,15 +141,30 @@ const InventoryDashboard = ({ user }) => {
     }
   };
 
-  const adjust = async (product) => {
-    const input = window.prompt(`New on-hand quantity for “${product.name}” (currently ${product.stock}):`, product.stock);
-    if (input === null) return;
+  const openAdjust = (product) => {
+    setAdjustTarget(product);
+    setAdjustQty(String(product.stock));
+    setAdjustErr('');
+  };
+
+  const saveAdjust = async () => {
+    if (!adjustTarget || adjustBusy) return;
+    const qty = Number(adjustQty);
+    if (!Number.isInteger(qty) || qty < 0) {
+      setAdjustErr('Enter a whole number, 0 or more.');
+      return;
+    }
+    setAdjustBusy(true);
+    setAdjustErr('');
     try {
-      await api('/api/inventory/adjust', { method: 'POST', body: { productId: product.id, newQuantity: Number(input) } });
-      setAdjustMsg(`${product.name} set to ${input} units.`);
+      await api('/api/inventory/adjust', { method: 'POST', body: { productId: adjustTarget.id, newQuantity: qty } });
+      setAdjustMsg(`${adjustTarget.name} set to ${qty} units.`);
+      setAdjustTarget(null);
       bump();
     } catch (ex) {
-      setAdjustMsg(ex.message);
+      setAdjustErr(ex.message);
+    } finally {
+      setAdjustBusy(false);
     }
   };
 
@@ -181,7 +200,7 @@ const InventoryDashboard = ({ user }) => {
                       { key: 'stock', label: 'Stock', render: (r) => <strong>{r.stock}</strong> },
                       {
                         key: 'actions', label: '', render: (r) => (
-                          <button className="mini-btn" onClick={() => adjust(r)}>ADJUST</button>
+                          <button className="mini-btn" onClick={() => openAdjust(r)}>ADJUST</button>
                         )
                       }
                     ]}
@@ -190,6 +209,38 @@ const InventoryDashboard = ({ user }) => {
                   />
                 )}
               </Panel>
+              {adjustTarget && (
+                <div className="product-modal-overlay" onClick={() => !adjustBusy && setAdjustTarget(null)}>
+                  <div className="receipt-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Adjust stock">
+                    <button className="product-modal-close" onClick={() => !adjustBusy && setAdjustTarget(null)} aria-label="Close">×</button>
+                    <h3>Adjust stock</h3>
+                    <p className="receipt-meta">{adjustTarget.name} — {adjustTarget.variant}</p>
+                    <p className="receipt-meta">Currently <strong>{adjustTarget.stock}</strong> units on hand.</p>
+                    <form onSubmit={(e) => { e.preventDefault(); saveAdjust(); }} className="inline-form">
+                      <div className="form-row">
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={adjustQty}
+                          onChange={(e) => setAdjustQty(e.target.value)}
+                          placeholder="New quantity"
+                          autoFocus
+                        />
+                      </div>
+                      {adjustErr && <ErrorNote message={adjustErr} />}
+                      <div className="verify-btns">
+                        <button type="submit" className="mini-btn verify-ok" disabled={adjustBusy}>
+                          {adjustBusy ? 'SAVING…' : 'SAVE'}
+                        </button>
+                        <button type="button" className="mini-btn" disabled={adjustBusy} onClick={() => setAdjustTarget(null)}>
+                          CANCEL
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </>
           );
         }
