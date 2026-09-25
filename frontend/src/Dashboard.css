@@ -1273,8 +1273,10 @@
   .dash-content {
     padding: 18px 16px 32px;
   }
+  /* Tablets keep two stat columns (drawer nav already frees the width);
+     phones drop to the swipeable single row (see max-width: 640px). */
   .stat-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 

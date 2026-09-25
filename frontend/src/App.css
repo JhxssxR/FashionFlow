@@ -2399,3 +2399,85 @@
     font-size: 11px;
   }
 }
+
+/* ==========================================================================
+   Universal responsive — TV/ultrawide caps, tablet band, landscape phones,
+   touch devices. Phone rules above stay untouched; these fill the gaps
+   between and beyond them (mobile → tablet → laptop → TV).
+   ========================================================================== */
+
+/* No tap-highlight flash on touch devices. */
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- TV / ultrawide (1441px+): cap content, don't stretch it ----------
+   (Footer already caps itself at 1400px; dashboards cap at 1440px.) */
+@media (min-width: 1441px) {
+  .header,
+  .filters-bar,
+  .section-header,
+  .product-grid,
+  .product-tabs {
+    padding-left: max(4rem, calc((100vw - 1500px) / 2));
+    padding-right: max(4rem, calc((100vw - 1500px) / 2));
+  }
+  .hero {
+    max-height: 900px;
+  }
+  .banner-content {
+    padding-left: max(4rem, calc((100vw - 1500px) / 2));
+  }
+}
+
+/* ---------- Tablet band (641–1024px): iPad portrait/landscape, small laptops ----------
+   Base desktop rules cover 1025px+; phone rules cover 640px and below. */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* 3-up grid uses the width better than the desktop 4 or phone 2. */
+  .product-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  .banner-cta {
+    flex-direction: column;
+    height: auto;
+  }
+  .banner-content {
+    padding: 3rem 2.5rem;
+  }
+  .hero-content {
+    padding: 2.5rem;
+  }
+  .footer-top {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  .active-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------- Landscape phones / short viewports (height ≤ 500px) ---------- */
+@media (max-height: 500px) {
+  .hero {
+    height: auto;
+    min-height: 420px;
+  }
+  .hero-content {
+    padding: 2rem;
+  }
+  .hero-description {
+    margin-bottom: 1.5rem;
+  }
+  .login-form-wrapper {
+    margin: 1.5rem auto;
+  }
+  .checkout-page {
+    padding: 24px 12px;
+  }
+  .product-modal {
+    max-height: 96vh;
+    max-height: 96dvh;
+  }
+}
