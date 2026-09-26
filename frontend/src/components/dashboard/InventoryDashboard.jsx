@@ -4,7 +4,8 @@ import {
   Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, StockAlertBanner } from './DashboardShared';
+import { StatCard, Panel, DataTable, StatusBadge, Loading, ErrorNote, StockAlertBanner, DateRangePicker } from './DashboardShared';
+import { useReportRange } from './useReportRange';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api, getAuth } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate, fmtDateTime } from '../../utils';
@@ -190,7 +191,9 @@ const InventoryDashboard = ({ user }) => {
   const [tick, setTick] = useState(0);
   const products = useApi('/api/products', [tick]);
   const summary = useApi('/api/inventory/summary', [tick]);
-  const series = useApi('/api/inventory/movement-series?days=14', [tick]);
+  const seriesRange = useReportRange(14);
+  const series = useApi(`/api/inventory/movement-series?${seriesRange.query}`, [tick, seriesRange.from, seriesRange.to]);
+  const moveLabel = seriesRange.from && seriesRange.to ? `${fmtDate(seriesRange.from)} – ${fmtDate(seriesRange.to)}` : 'last 14 days';
   const movements = useApi('/api/inventory/movements?limit=40', [tick]);
   const deliveries = useApi('/api/purchase-orders', [tick]);
   const lowStock = useApi('/api/inventory/low-stock', [tick]);
@@ -393,7 +396,8 @@ const InventoryDashboard = ({ user }) => {
         if (page === 'movements') {
           return (
             <>
-              <Panel title="Stock movements — last 14 days" subtitle="Units received vs units sold">
+              <Panel title={`Stock movements — ${moveLabel}`} subtitle="Units received vs units sold">
+                <DateRangePicker from={seriesRange.from} to={seriesRange.to} today={seriesRange.today} onFrom={seriesRange.setFrom} onTo={seriesRange.setTo} onReset={seriesRange.reset} resetLabel="LAST 14 DAYS" />
                 <ErrorNote message={series.error} />
                 {series.loading ? <Loading /> : movementSeries(series.data)}
               </Panel>
@@ -579,7 +583,8 @@ const InventoryDashboard = ({ user }) => {
             </div>
 
             <div className="panel-grid panel-grid-2-1">
-              <Panel title="Stock movements — last 14 days" subtitle="Units received vs units sold">
+              <Panel title={`Stock movements — ${moveLabel}`} subtitle="Units received vs units sold">
+                <DateRangePicker from={seriesRange.from} to={seriesRange.to} today={seriesRange.today} onFrom={seriesRange.setFrom} onTo={seriesRange.setTo} onReset={seriesRange.reset} resetLabel="LAST 14 DAYS" />
                 <ErrorNote message={series.error} />
                 {series.loading ? <Loading /> : movementSeries(series.data)}
               </Panel>

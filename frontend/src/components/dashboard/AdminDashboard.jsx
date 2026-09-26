@@ -354,6 +354,23 @@ const AdminDashboard = ({ user }) => {
   const [overviewStockPage, setOverviewStockPage] = useState(1);
 
   const usersQ = useApi('/api/users', [usersTick]);
+  const fmtISODate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const [todayISO] = useState(() => fmtISODate(new Date()));
+  // Reports date range (defaults to the last 30 days). The overview keeps
+  // the fixed 30-day `sales` query; reports use `salesRange` instead.
+  const [repTo, setRepTo] = useState(() => fmtISODate(new Date()));
+  const [repFrom, setRepFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 29); return fmtISODate(d); });
+  const repQuery = repFrom && repTo ? `from=${repFrom}&to=${repTo}` : 'days=30';
+  const salesRange = useApi(`/api/reports/sales-summary?${repQuery}`, [repFrom, repTo]);
+  const repSeries = salesRange.data?.series || [];
+  const repLabel = repFrom && repTo ? `${fmtDate(repFrom)} – ${fmtDate(repTo)}` : 'last 30 days';
+  const resetRange = () => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 29);
+    setRepTo(fmtISODate(to));
+    setRepFrom(fmtISODate(from));
+  };
   // 200 = the API's cap; the logs page pages through them 10 at a time.
   const logs = useApi('/api/logs?limit=200', [usersTick]);
   const lowStock = useApi('/api/inventory/low-stock', [usersTick]);
@@ -377,9 +394,9 @@ const AdminDashboard = ({ user }) => {
   const overviewStockCount = Math.max(1, Math.ceil(stockRows.length / OVERVIEW_PAGE_SIZE));
   const overviewStockSafe = Math.min(overviewStockPage, overviewStockCount);
 
-  const revenueChart = (
+  const revenueChartFor = (chartSeries) => (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <AreaChart data={chartSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={CHART_COLORS.gold} stopOpacity={0.45} />
@@ -438,20 +455,28 @@ const AdminDashboard = ({ user }) => {
         }
 
         if (page === 'reports') {
+          const repFile = repFrom && repTo ? `${repFrom}-to-${repTo}` : 'last-30-days';
           return (
             <>
-              <Panel title="Revenue — last 30 days" subtitle="System-wide reporting across storefront, POS and online orders">
-                <ErrorNote message={sales.error} />
-                {sales.loading ? <Loading /> : (
+              <Panel title={`Revenue — ${repLabel}`} subtitle="System-wide reporting across storefront, POS and online orders">
+                <div className="inline-form" style={{ marginBottom: 12 }}>
+                  <div className="form-row">
+                    <input type="date" value={repFrom} max={repTo || todayISO} onChange={(e) => setRepFrom(e.target.value)} aria-label="Start date" />
+                    <input type="date" value={repTo} min={repFrom} max={todayISO} onChange={(e) => setRepTo(e.target.value)} aria-label="End date" />
+                    <button type="button" className="mini-btn" onClick={resetRange}>LAST 30 DAYS</button>
+                  </div>
+                </div>
+                <ErrorNote message={salesRange.error} />
+                {salesRange.loading ? <Loading /> : (
                   <>
-                    {revenueChart}
+                    {revenueChartFor(repSeries)}
                     <button
                       className="mini-btn"
-                      onClick={() => downloadCsv('sales-summary-30days.csv', [
+                      onClick={() => downloadCsv(`sales-summary-${repFile}.csv`, [
                         { key: 'date', label: 'Date' },
                         { key: 'revenue', label: 'Revenue' },
                         { key: 'orders', label: 'Orders' }
-                      ], series)}
+                      ], repSeries)}
                     >
                       DOWNLOAD CSV
                     </button>
@@ -459,9 +484,9 @@ const AdminDashboard = ({ user }) => {
                 )}
               </Panel>
 
-              <Panel title="Revenue by item — last 30 days" subtitle="Which specific products brought the money in">
-                <ErrorNote message={sales.error} />
-                {sales.loading ? <Loading /> : (
+              <Panel title={`Revenue by item — ${repLabel}`} subtitle="Which specific products brought the money in">
+                <ErrorNote message={salesRange.error} />
+                {salesRange.loading ? <Loading /> : (
                   <>
                     <DataTable
                       keyField="id"
@@ -484,12 +509,12 @@ const AdminDashboard = ({ user }) => {
                           )
                         }
                       ]}
-                      rows={sales.data?.byProduct || []}
+                      rows={salesRange.data?.byProduct || []}
                       pageSize={10}
                     />
                     <button
                       className="mini-btn"
-                      onClick={() => downloadCsv('sales-by-item-30days.csv', [
+                      onClick={() => downloadCsv(`sales-by-item-${repFile}.csv`, [
                         { key: 'name', label: 'Item' },
                         { key: 'variant', label: 'Variant' },
                         { key: 'units', label: 'Units sold' },
@@ -497,7 +522,7 @@ const AdminDashboard = ({ user }) => {
                         { key: 'lastSold', label: 'Last sold' },
                         { key: 'orders', label: 'Orders' },
                         { key: 'share', label: 'Share %' }
-                      ], sales.data?.byProduct || [])}
+                      ], salesRange.data?.byProduct || [])}
                     >
                       DOWNLOAD ITEMS CSV
                     </button>
@@ -567,7 +592,7 @@ const AdminDashboard = ({ user }) => {
             <div className="panel-grid panel-grid-2-1">
               <Panel title="Revenue — last 30 days" subtitle="All channels: storefront, POS and online orders">
                 <ErrorNote message={sales.error} />
-                {sales.loading ? <Loading /> : revenueChart}
+                {sales.loading ? <Loading /> : revenueChartFor(series)}
               </Panel>
 
               <Panel title="Users by role" subtitle="Access distribution">

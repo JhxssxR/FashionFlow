@@ -120,17 +120,30 @@ public class InventoryController(FashionFlowDbContext db) : ControllerBase
 
     [HttpGet("movement-series")]
     [Authorize(Roles = "Admin,InventoryManager,Accountant")]
-    public async Task<IActionResult> MovementSeries([FromQuery] int days = 14)
+    public async Task<IActionResult> MovementSeries([FromQuery] int days = 14, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        days = Math.Clamp(days, 7, 60);
-        var start = DateTime.Today.AddDays(-(days - 1));
+        var end = to ?? DateOnly.FromDateTime(DateTime.Today);
+        DateOnly startDate;
+        if (from is not null)
+        {
+            startDate = from.Value;
+            if (startDate > end) (startDate, end) = (end, startDate);
+            if (end.DayNumber - startDate.DayNumber > 89) startDate = end.AddDays(-89);
+        }
+        else
+        {
+            days = Math.Clamp(days, 7, 60);
+            startDate = end.AddDays(-(days - 1));
+        }
+        var spanDays = end.DayNumber - startDate.DayNumber + 1;
+        var start = startDate.ToDateTime(TimeOnly.MinValue);
 
         var raw = await db.StockMovements
-            .Where(m => m.Date >= start)
+            .Where(m => m.Date >= start && m.Date < end.AddDays(1).ToDateTime(TimeOnly.MinValue))
             .Select(m => new { m.Date, m.Direction, m.Quantity })
             .ToListAsync();
 
-        var series = Enumerable.Range(0, days).Select(offset =>
+        var series = Enumerable.Range(0, spanDays).Select(offset =>
         {
             var day = start.AddDays(offset);
             var inUnits = raw.Where(m => m.Date.Date == day && m.Direction == "In").Sum(m => m.Quantity);

@@ -4,7 +4,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, Loading, ErrorNote, DateRangePicker } from './DashboardShared';
+import { useReportRange } from './useReportRange';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi } from '../../api/client';
 import { downloadCsv } from '../../utils';
@@ -14,7 +15,10 @@ const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.purple, CHART_COLORS.green, '#b9b9b9'];
 
 const AccountantDashboard = ({ user }) => {
-  const finance = useApi('/api/reports/financial-summary');
+  const range = useReportRange(14);
+  const finance = useApi(`/api/reports/financial-summary?${range.query}`, [range.from, range.to]);
+  const finLabel = range.from && range.to ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : 'last 14 days';
+  const finDays = range.from && range.to ? Math.round((new Date(range.to) - new Date(range.from)) / 86400000) + 1 : 14;
 
   const d = finance.data || {};
   const daily14 = d.daily14 || [];
@@ -146,14 +150,15 @@ const AccountantDashboard = ({ user }) => {
         return (
           <>
             <div className="stat-grid">
-              <StatCard label="REVENUE (14 DAYS)" value={peso(revenue30d)} sub="Live from the Sales table" />
-              <StatCard label="EXPENSES (14 DAYS)" value={peso(expenses30d)} sub="Purchase orders issued" tone="red" />
-              <StatCard label="NET PROFIT (14 DAYS)" value={peso(profit30)} sub={`${margin30}% net margin`} tone="green" />
+              <StatCard label={`REVENUE (${finDays} DAYS)`} value={peso(revenue30d)} sub="Live from the Sales table" />
+              <StatCard label={`EXPENSES (${finDays} DAYS)`} value={peso(expenses30d)} sub="Purchase orders issued" tone="red" />
+              <StatCard label={`NET PROFIT (${finDays} DAYS)`} value={peso(profit30)} sub={`${margin30}% net margin`} tone="green" />
               <StatCard label="OPEN PAYABLES" value={peso(d.payablesTotal)} sub="Undelivered purchase orders" tone="purple" />
             </div>
 
             <div className="panel-grid panel-grid-2-1">
-              <Panel title="Revenue vs expenses — last 14 days" subtitle="Daily operating results across all channels">
+              <Panel title={`Revenue vs expenses — ${finLabel}`} subtitle="Daily operating results across all channels">
+                <DateRangePicker from={range.from} to={range.to} today={range.today} onFrom={range.setFrom} onTo={range.setTo} onReset={range.reset} resetLabel="LAST 14 DAYS" />
                 <ErrorNote message={finance.error} />
                 {finance.loading ? <Loading /> : composedChart}
               </Panel>

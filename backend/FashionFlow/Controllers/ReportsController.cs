@@ -22,17 +22,33 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
     private static string DayLabel(DateTime d) => d.ToString("MMM d", CultureInfo.InvariantCulture);
 
     // Revenue/orders per day from real Sale rows (POS + online).
+    // Optional from/to (yyyy-MM-dd) bound the window; otherwise the last
+    // `days` days are used. Range is capped at 90 days for chart sanity.
     [HttpGet("sales-summary")]
-    public async Task<IActionResult> SalesSummary([FromQuery] int days = 30)
+    public async Task<IActionResult> SalesSummary([FromQuery] int days = 30, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        days = Math.Clamp(days, 7, 90);
-        var start = DateTime.Today.AddDays(-(days - 1));
+        var end = to ?? DateOnly.FromDateTime(DateTime.Today);
+        DateOnly startDate;
+        if (from is not null)
+        {
+            startDate = from.Value;
+            if (startDate > end) (startDate, end) = (end, startDate);
+            if (end.DayNumber - startDate.DayNumber > 89) startDate = end.AddDays(-89);
+        }
+        else
+        {
+            days = Math.Clamp(days, 7, 90);
+            startDate = end.AddDays(-(days - 1));
+        }
+        var spanDays = end.DayNumber - startDate.DayNumber + 1;
+        var start = startDate.ToDateTime(TimeOnly.MinValue);
+        var endExclusive = end.AddDays(1).ToDateTime(TimeOnly.MinValue);
 
-        var rows = await db.Sales.Where(s => s.Date >= start)
+        var rows = await db.Sales.Where(s => s.Date >= start && s.Date < endExclusive)
             .Select(s => new { s.Date, s.ReceiptNo, s.TotalAmount })
             .ToListAsync();
 
-        var series = Enumerable.Range(0, days).Select(offset =>
+        var series = Enumerable.Range(0, spanDays).Select(offset =>
         {
             var day = start.AddDays(offset);
             var dayRows = rows.Where(r => r.Date.Date == day).ToList();
@@ -47,7 +63,7 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
 
         // Item-level revenue: which specific products brought the money in.
         var itemRows = await db.Sales.Include(s => s.Product)
-            .Where(s => s.Date >= start)
+            .Where(s => s.Date >= start && s.Date < endExclusive)
             .Select(s => new
             {
                 s.ProductId,
@@ -88,25 +104,39 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
         });
     }
 
-    // Purchasing spend per day (outbound to suppliers).
+    // Purchasing spend per day (outbound to suppliers). Optional from/to
+    // (yyyy-MM-dd) bound the window; otherwise the last `days` days.
     [HttpGet("purchasing-summary")]
     [Authorize(Roles = "Admin,PurchasingOfficer,Accountant")]
-    public async Task<IActionResult> PurchasingSummary([FromQuery] int days = 14)
+    public async Task<IActionResult> PurchasingSummary([FromQuery] int days = 14, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        days = Math.Clamp(days, 7, 60);
-        var start = DateTime.Today.AddDays(-(days - 1));
+        var end = to ?? DateOnly.FromDateTime(DateTime.Today);
+        DateOnly startDate;
+        if (from is not null)
+        {
+            startDate = from.Value;
+            if (startDate > end) (startDate, end) = (end, startDate);
+            if (end.DayNumber - startDate.DayNumber > 59) startDate = end.AddDays(-59);
+        }
+        else
+        {
+            days = Math.Clamp(days, 7, 60);
+            startDate = end.AddDays(-(days - 1));
+        }
+        var spanDays = end.DayNumber - startDate.DayNumber + 1;
+        var start = startDate.ToDateTime(TimeOnly.MinValue);
 
         var rows = await db.PurchaseOrders
-            .Where(p => p.IssuedDate.ToDateTime(TimeOnly.MinValue) >= start && p.Status != "Cancelled")
+            .Where(p => p.IssuedDate.ToDateTime(TimeOnly.MinValue) >= start && p.IssuedDate.ToDateTime(TimeOnly.MinValue) < end.AddDays(1).ToDateTime(TimeOnly.MinValue) && p.Status != "Cancelled")
             .Select(p => new { p.IssuedDate, p.Amount })
             .ToListAsync();
 
-        var series = Enumerable.Range(0, days).Select(offset =>
+        var series = Enumerable.Range(0, spanDays).Select(offset =>
         {
             var day = DateOnly.FromDateTime(start.AddDays(offset));
             return new
             {
-                date = $"D-{(days - 1 - offset)}",
+                date = spanDays <= 31 ? DayLabel(day.ToDateTime(TimeOnly.MinValue)) : $"D-{(spanDays - 1 - offset)}",
                 fullDate = day.ToString("yyyy-MM-dd"),
                 spend = rows.Where(r => r.IssuedDate == day).Sum(r => r.Amount)
             };
@@ -117,11 +147,18 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
 
     // Financial overview: revenue vs expenses (expenses = purchase orders
     // issued per period), payables = open POs, spend mix by supplier category.
+    // The daily window accepts from/to (yyyy-MM-dd, capped at 90 days);
+    // monthly and breakdown figures stay year-to-date.
     [HttpGet("financial-summary")]
     [Authorize(Roles = "Admin,Accountant")]
-    public async Task<IActionResult> FinancialSummary()
+    public async Task<IActionResult> FinancialSummary([FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        var start14 = DateTime.Today.AddDays(-13);
+        var endDate = to ?? DateOnly.FromDateTime(DateTime.Today);
+        var startDate = from ?? endDate.AddDays(-13);
+        if (startDate > endDate) (startDate, endDate) = (endDate, startDate);
+        if (endDate.DayNumber - startDate.DayNumber > 89) startDate = endDate.AddDays(-89);
+        var spanDays = endDate.DayNumber - startDate.DayNumber + 1;
+        var start14 = startDate.ToDateTime(TimeOnly.MinValue);
         var yearStart = new DateTime(DateTime.Now.Year, 1, 1);
 
         var sales = await db.Sales.Where(s => s.Date >= yearStart)
@@ -131,7 +168,7 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
             .Select(p => new { p.IssuedDate, p.Amount })
             .ToListAsync();
 
-        var daily14 = Enumerable.Range(0, 14).Select(offset =>
+        var daily14 = Enumerable.Range(0, spanDays).Select(offset =>
         {
             var day = start14.AddDays(offset);
             var revenue = sales.Where(s => s.Date.Date == day).Sum(s => s.TotalAmount);

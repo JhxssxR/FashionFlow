@@ -47,9 +47,11 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
 
     [HttpGet("today")]
     [Authorize(Roles = "Admin,SalesStaff,Accountant")]
-    public async Task<IActionResult> Today()
+    public async Task<IActionResult> Today([FromQuery] DateOnly? date = null)
     {
-        var today = DateTime.Today;
+        // Optional day picker (yyyy-MM-dd): stats + hourly bars for any day,
+        // with the previous day as the comparison baseline.
+        var today = (date ?? DateOnly.FromDateTime(DateTime.Today)).ToDateTime(TimeOnly.MinValue);
         var sales = await db.Sales
             .Where(s => s.Date >= today || (s.Date >= today.AddDays(-1) && s.Date < today))
             .ToListAsync();

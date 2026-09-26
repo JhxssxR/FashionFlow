@@ -187,6 +187,17 @@ const SalesDashboard = ({ user }) => {
   const customersQ = useApi('/api/customers', [customerTick]);
 
   const data = today.data;
+  const [todayISO] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  // Hourly chart day picker (defaults to today; stats above stay on today).
+  const [hourDate, setHourDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const hourData = useApi(hourDate ? `/api/sales/today?date=${hourDate}` : '/api/sales/today', [hourDate]);
+  const hourLabel = hourDate && hourDate !== todayISO ? fmtDate(hourDate) : 'today';
   const tierCounts = useMemo(() => {
     const tiers = { Gold: 0, Silver: 0, Bronze: 0, Platinum: 0 };
     (customersQ.data || []).forEach((c) => { tiers[c.tier] = (tiers[c.tier] || 0) + 1; });
@@ -348,10 +359,15 @@ const SalesDashboard = ({ user }) => {
             </div>
             )}
 
-            <Panel title="Sales by hour — today" subtitle="POS terminal performance, live from the Sales table">
-              {today.loading ? <Loading /> : (
+            <Panel title={`Sales by hour — ${hourLabel}`} subtitle="POS terminal performance, live from the Sales table">
+              <div className="inline-form" style={{ marginBottom: 12 }}>
+                <div className="form-row">
+                  <input type="date" value={hourDate} max={todayISO} onChange={(e) => setHourDate(e.target.value)} aria-label="Sales day" />
+                </div>
+              </div>
+              {hourData.loading ? <Loading /> : (
                 <ResponsiveContainer width="100%" height={270}>
-                  <BarChart data={data?.byHour || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <BarChart data={hourData.data?.byHour || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
                     <XAxis dataKey="hour" tick={AXIS} tickLine={false} axisLine={false} />
                     <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />

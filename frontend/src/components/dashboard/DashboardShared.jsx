@@ -187,6 +187,21 @@ export function ErrorNote({ message }) {
   return <div className="api-error">{message}</div>;
 }
 
+// Start/end date picker row for report charts. `resetLabel` names the
+// default window (e.g. "LAST 14 DAYS"). Pair with useReportRange
+// (./useReportRange.js) for state + the API query string.
+export function DateRangePicker({ from, to, today, onFrom, onTo, onReset, resetLabel = 'RESET' }) {
+  return (
+    <div className="inline-form" style={{ marginBottom: 12 }}>
+      <div className="form-row">
+        <input type="date" value={from} max={to || today} onChange={(e) => onFrom(e.target.value)} aria-label="Start date" />
+        <input type="date" value={to} min={from} max={today} onChange={(e) => onTo(e.target.value)} aria-label="End date" />
+        <button type="button" className="mini-btn" onClick={onReset}>{resetLabel}</button>
+      </div>
+    </div>
+  );
+}
+
 // Client-side pagination footer: ← PREV / PAGE x OF y / NEXT →.
 // Renders nothing for a single page. `total`/`pageSize` add an
 // entries count when provided.

@@ -4,7 +4,8 @@ import {
   Tooltip, ResponsiveContainer
 } from 'recharts';
 import DashboardLayout from './DashboardLayout';
-import { StatCard, Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
+import { StatCard, Panel, DataTable, Loading, ErrorNote, DateRangePicker } from './DashboardShared';
+import { useReportRange } from './useReportRange';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
 import { peso, num, CHART_COLORS, fmtDate } from '../../utils';
@@ -163,10 +164,12 @@ const PurchasingDashboard = ({ user }) => {
   const pos = useApi('/api/purchase-orders', [tick]);
   const suppliers = useApi('/api/suppliers', [tick]);
   const products = useApi('/api/products', []);
-  const spend = useApi('/api/reports/purchasing-summary?days=14', [tick]);
+  const range = useReportRange(14);
+  const spend = useApi(`/api/reports/purchasing-summary?${range.query}`, [tick, range.from, range.to]);
   const lowStock = useApi('/api/inventory/low-stock', [tick]);
   const bump = () => setTick((t) => t + 1);
   const [poPrefill, setPoPrefill] = useState(null);
+  const spendLabel = range.from && range.to ? `${fmtDate(range.from)} – ${fmtDate(range.to)}` : 'last 14 days';
 
   const rows = pos.data || [];
   const openSpend = rows.filter((p) => p.status !== 'Cancelled').reduce((s, p) => s + p.amount, 0);
@@ -180,9 +183,9 @@ const PurchasingDashboard = ({ user }) => {
     ? Math.round((suppliers.data || []).reduce((s, x) => s + x.onTime, 0) / suppliers.data.length)
     : 0;
 
-  const spendChart = (
+  const spendChartFor = (chartSeries) => (
     <ResponsiveContainer width="100%" height={260}>
-      <AreaChart data={spend.data?.series || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <AreaChart data={chartSeries} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={CHART_COLORS.purple} stopOpacity={0.4} />
@@ -245,9 +248,10 @@ const PurchasingDashboard = ({ user }) => {
               <Panel title="Issue a purchase order" subtitle="Unit cost is suggested at 65% of retail — edit freely">
                 <NewPOForm suppliers={suppliers.data} products={products.data} onDone={() => { bump(); setPoPrefill(null); }} prefill={poPrefill} />
               </Panel>
-              <Panel title="Purchasing spend — last 14 days" subtitle="Outbound to suppliers, from issued POs">
+              <Panel title={`Purchasing spend — ${spendLabel}`} subtitle="Outbound to suppliers, from issued POs">
+                <DateRangePicker from={range.from} to={range.to} today={range.today} onFrom={range.setFrom} onTo={range.setTo} onReset={range.reset} resetLabel="LAST 14 DAYS" />
                 <ErrorNote message={spend.error} />
-                {spend.loading ? <Loading /> : spendChart}
+                {spend.loading ? <Loading /> : spendChartFor(spend.data?.series || [])}
               </Panel>
               <Panel title="Purchase orders" subtitle="All purchasing transactions">
                 <ErrorNote message={pos.error} />
@@ -366,11 +370,12 @@ const PurchasingDashboard = ({ user }) => {
             <>
               <div className="stat-grid">
                 <StatCard label="OPEN PO VALUE" value={peso(openSpend)} sub={`${rows.length} purchase orders on file`} />
-                <StatCard label="SPEND (14 DAYS)" value={peso(spend.data?.total)} sub="From issued purchase orders" tone="dark" />
+                <StatCard label="PURCHASING SPEND" value={peso(spend.data?.total)} sub={`Issued POs · ${spendLabel}`} tone="dark" />
               </div>
-              <Panel title="Purchasing spend — last 14 days" subtitle="Outbound to suppliers, from issued POs">
+              <Panel title={`Purchasing spend — ${spendLabel}`} subtitle="Outbound to suppliers, from issued POs">
+                <DateRangePicker from={range.from} to={range.to} today={range.today} onFrom={range.setFrom} onTo={range.setTo} onReset={range.reset} resetLabel="LAST 14 DAYS" />
                 <ErrorNote message={spend.error} />
-                {spend.loading ? <Loading /> : spendChart}
+                {spend.loading ? <Loading /> : spendChartFor(spend.data?.series || [])}
               </Panel>
               <SavedReportsPanel role="purchasing" defaultType="Purchasing" />
             </>
@@ -384,7 +389,7 @@ const PurchasingDashboard = ({ user }) => {
               <StatCard label="OPEN PO VALUE" value={peso(openSpend)} sub={`${rows.length} purchase orders on file`} />
               <StatCard label="AWAITING APPROVAL" value={num(pending)} sub="Pending supplier confirmation" tone="red" />
               <StatCard label="ACTIVE SUPPLIERS" value={num(suppliers.data?.length)} sub={`Avg on-time rate ${avgOnTime}%`} tone="purple" />
-              <StatCard label="SPEND (14 DAYS)" value={peso(spend.data?.total)} sub="From issued purchase orders" tone="dark" />
+                <StatCard label="PURCHASING SPEND" value={peso(spend.data?.total)} sub={`Issued POs · ${spendLabel}`} tone="dark" />
             </div>
 
             <Panel title="Reorder suggestions" subtitle={`Products at or below ${threshold} units (live from Inventory) — CREATE PO pre-fills the purchase order form`}>
@@ -419,9 +424,10 @@ const PurchasingDashboard = ({ user }) => {
             </Panel>
 
             <div className="panel-grid panel-grid-2-1">
-              <Panel title="Purchasing spend — last 14 days" subtitle="Outbound to suppliers">
+              <Panel title={`Purchasing spend — ${spendLabel}`} subtitle="Outbound to suppliers">
+                <DateRangePicker from={range.from} to={range.to} today={range.today} onFrom={range.setFrom} onTo={range.setTo} onReset={range.reset} resetLabel="LAST 14 DAYS" />
                 <ErrorNote message={spend.error} />
-                {spend.loading ? <Loading /> : spendChart}
+                {spend.loading ? <Loading /> : spendChartFor(spend.data?.series || [])}
               </Panel>
 
               <Panel title="POs by status" subtitle="Current pipeline">
