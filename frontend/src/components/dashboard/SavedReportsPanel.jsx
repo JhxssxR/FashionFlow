@@ -15,6 +15,9 @@ export const SavedReportsPanel = ({
   const [reportType, setReportType] = useState(defaultType);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportErr, setReportErr] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteErr, setDeleteErr] = useState('');
 
   const reports = useApi('/api/reports', [reportsTick]);
 
@@ -38,13 +41,18 @@ export const SavedReportsPanel = ({
     }
   };
 
-  const deleteReport = async (id, titleToDelete) => {
-    if (!window.confirm(`Delete archived report "${titleToDelete}"?`)) return;
+  const deleteReport = async () => {
+    if (!deleteTarget || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteErr('');
     try {
-      await api(`/api/reports/${id}`, { method: 'DELETE' });
+      await api(`/api/reports/${deleteTarget.id}`, { method: 'DELETE' });
+      setDeleteTarget(null);
       setReportsTick((t) => t + 1);
     } catch (ex) {
-      window.alert(ex.message);
+      setDeleteErr(ex.message);
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -76,6 +84,7 @@ export const SavedReportsPanel = ({
   const currentQuarter = `Q${Math.floor(now.getMonth() / 3) + 1} ${now.getFullYear()}`;
 
   return (
+    <>
     <Panel
       title={title}
       subtitle={subtitle}
@@ -174,7 +183,7 @@ export const SavedReportsPanel = ({
                     <button
                       type="button"
                       className="link-btn danger"
-                      onClick={() => deleteReport(r.id, r.title)}
+                      onClick={() => { setDeleteTarget(r); setDeleteErr(''); }}
                     >
                       DELETE
                     </button>
@@ -188,6 +197,26 @@ export const SavedReportsPanel = ({
         />
       )}
     </Panel>
+    {deleteTarget && (
+      <div className="product-modal-overlay" onClick={() => !deleteBusy && setDeleteTarget(null)}>
+        <div className="receipt-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Delete report">
+          <button className="product-modal-close" onClick={() => !deleteBusy && setDeleteTarget(null)} aria-label="Close">×</button>
+          <h3>Delete report?</h3>
+          <p className="receipt-meta">{deleteTarget.title} · {deleteTarget.type}</p>
+          <p className="receipt-meta">The archived report is removed permanently. This cannot be undone.</p>
+          {deleteErr && <ErrorNote message={deleteErr} />}
+          <div className="verify-btns center" style={{ marginTop: 16 }}>
+            <button type="button" className="mini-btn" disabled={deleteBusy} onClick={() => setDeleteTarget(null)}>
+              KEEP IT
+            </button>
+            <button type="button" className="mini-btn verify-no" disabled={deleteBusy} onClick={deleteReport}>
+              {deleteBusy ? 'DELETING…' : 'DELETE'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
