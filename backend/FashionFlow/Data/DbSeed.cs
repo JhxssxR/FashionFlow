@@ -400,6 +400,69 @@ public static class DbSeed
         }
     }
 
+    // Supplier quotation coverage for the whole catalog: every supplier
+    // quotes the products in their lane, with the winner rotating per
+    // product — so each supplier owns the highest discount on a fair share
+    // (demo-ready comparisons everywhere). Existing rows are never touched:
+    // purchasing owns them after creation. Costs track 65% of live retail.
+    public static async Task SeedSupplierQuotesAsync(FashionFlowDbContext db)
+    {
+        var lanes = new (string Category, string[] Suppliers)[]
+        {
+            ("Dresses", ["Davao Apparel Supply", "Manila Textile Hub", "Cebu Garments Co."]),
+            ("Outerwear", ["Baguio Weaves", "Denim Republic PH", "Manila Textile Hub"]),
+            ("Bottoms", ["Denim Republic PH", "Manila Textile Hub", "Davao Apparel Supply"]),
+            ("Tops", ["Cebu Garments Co.", "Manila Textile Hub", "Baguio Weaves"]),
+            ("Shirts", ["Cebu Garments Co.", "Denim Republic PH", "Manila Textile Hub"]),
+        };
+
+        var suppliers = await db.Suppliers.ToListAsync();
+        var products = await db.Products.Where(p => p.IsActive).OrderBy(p => p.ProductId).ToListAsync();
+        var existing = await db.SupplierPrices
+            .Select(q => q.SupplierId * 1000000 + q.ProductId)
+            .ToHashSetAsync();
+
+        var n = 0;
+        foreach (var lane in lanes)
+        {
+            var quoters = new List<Supplier>();
+            foreach (var name in lane.Suppliers)
+            {
+                var s = suppliers.FirstOrDefault(x => x.Name == name);
+                if (s is not null) quoters.Add(s);
+            }
+            if (quoters.Count == 0) continue;
+
+            foreach (var p in products.Where(p => p.Category == lane.Category))
+            {
+                var winner = n % quoters.Count;
+                for (var i = 0; i < quoters.Count; i++)
+                {
+                    var s = quoters[i];
+                    if (existing.Contains(s.SupplierId * 1000000 + p.ProductId)) continue;
+                    // Winner 14–16%, the rest 5–10%: exactly one highest
+                    // discount per product, wins spread across suppliers.
+                    var discount = i == winner ? 14 + (n % 3) : 5 + ((n + i) % 6);
+                    db.SupplierPrices.Add(new SupplierPrice
+                    {
+                        SupplierId = s.SupplierId,
+                        ProductId = p.ProductId,
+                        UnitCost = Math.Round(p.Price * 0.65m),
+                        DiscountPct = discount,
+                        UpdatedAt = DateTime.Now
+                    });
+                    existing.Add(s.SupplierId * 1000000 + p.ProductId);
+                }
+                n++;
+            }
+        }
+
+        if (db.ChangeTracker.HasChanges())
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
     // Backfill: if a PO was created before the supplier's User account existed,
     // the notification was never pushed. This creates the missing notifications
     // for any Pending POs that have no matching notification row.

@@ -10,6 +10,7 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Inventory> Inventories => Set<Inventory>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<SupplierPrice> SupplierPrices => Set<SupplierPrice>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<Customer> Customers => Set<Customer>();
@@ -59,5 +60,8 @@ public class FashionFlowDbContext(DbContextOptions<FashionFlowDbContext> options
         mb.Entity<Sale>().Property(s => s.TotalAmount).HasPrecision(18, 2);
         mb.Entity<Promotion>().Property(p => p.DiscountValue).HasPrecision(18, 2);
         mb.Entity<Supplier>().Property(s => s.Rating).HasPrecision(3, 1);
+        mb.Entity<SupplierPrice>().HasIndex(q => new { q.SupplierId, q.ProductId }).IsUnique();
+        mb.Entity<SupplierPrice>().Property(q => q.UnitCost).HasPrecision(18, 2);
+        mb.Entity<SupplierPrice>().Property(q => q.DiscountPct).HasPrecision(5, 2);
     }
 }

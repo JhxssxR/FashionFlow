@@ -122,10 +122,13 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
 
     // One row of the price comparison (serialized camelCase by the
     // framework's default JSON policy, matching the other endpoints).
+    // BestUnitCost is the cheapest of PO history and the quoted offer;
+    // BestSource tells which one won ("PO", "QUOTE" or null).
     private sealed record CompareRow(
         int SupplierId, string Supplier, string Location, decimal Rating, int OnTime,
-        int Orders, int TotalUnits, decimal? BestUnitCost, int? BestQty, string? BestDate,
-        decimal? LastUnitCost, string? LastDate, int? LeadDays, bool HasHistory, bool IsBest);
+        int Orders, int TotalUnits, decimal? BestUnitCost, string? BestSource, decimal BestDiscount,
+        int? BestQty, string? BestDate, decimal? LastUnitCost, string? LastDate,
+        int? LeadDays, bool HasHistory, bool HasQuote, bool IsBest);
 
     // Price comparison for one product: EVERY supplier is listed so
     // purchasing can choose (by price, rating and delivery speed), with
@@ -141,6 +144,9 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
         var suppliers = await db.Suppliers.OrderBy(s => s.Name).ToListAsync();
         var productPos = await db.PurchaseOrders
             .Where(p => p.ProductId == productId && p.Status != "Cancelled")
+            .ToListAsync();
+        var quotes = await db.SupplierPrices
+            .Where(q => q.ProductId == productId)
             .ToListAsync();
         // Overall delivery record per supplier (same formula as the
         // directory: on-time share of delivered orders, rating = share × 5).
@@ -159,26 +165,35 @@ public class SuppliersController(FashionFlowDbContext db) : ControllerBase
             var liveRating = overall.Count == 0 ? s.Rating : (decimal)Math.Round(overallOnTimeCount * 5.0 / overall.Count, 1);
 
             var mine = productPos.Where(p => p.SupplierId == s.SupplierId).ToList();
-            if (mine.Count == 0)
+            var quote = quotes.FirstOrDefault(q => q.SupplierId == s.SupplierId);
+            if (mine.Count == 0 && quote is null)
             {
                 withoutHistory.Add(new CompareRow(
                     s.SupplierId, s.Name, s.Address, liveRating, onTime,
-                    0, 0, null, null, null, null, null, null, false, false));
+                    0, 0, null, null, 0, null, null, null, null, null, false, false, false));
                 continue;
             }
 
-            var best = mine.OrderBy(p => p.UnitCost).First();
-            var latest = mine.OrderByDescending(p => p.IssuedDate).ThenByDescending(p => p.PurchaseId).First();
+            var best = mine.Count == 0 ? null : mine.OrderBy(p => p.UnitCost).First();
+            var latest = mine.Count == 0 ? null : mine.OrderByDescending(p => p.IssuedDate).ThenByDescending(p => p.PurchaseId).First();
             var deliveredMine = mine.Where(p => p.Status == "Delivered" && p.DeliveredDate != null).ToList();
             int? leadDays = deliveredMine.Count == 0
                 ? null
                 : (int)Math.Round(deliveredMine.Average(p => (p.DeliveredDate!.Value.DayNumber - p.IssuedDate.DayNumber)));
+            decimal? quoteEffective = quote is null
+                ? null
+                : Math.Round(quote.UnitCost * (1 - quote.DiscountPct / 100));
+            var useQuote = quoteEffective != null && (best == null || quoteEffective < best.UnitCost);
             withHistory.Add(new CompareRow(
                 s.SupplierId, s.Name, s.Address, liveRating, onTime,
                 mine.Count, mine.Sum(p => p.Quantity),
-                best.UnitCost, best.Quantity, best.IssuedDate.ToString("yyyy-MM-dd"),
-                latest.UnitCost, latest.IssuedDate.ToString("yyyy-MM-dd"),
-                leadDays, true, false));
+                useQuote ? quoteEffective : best?.UnitCost,
+                useQuote ? "QUOTE" : (best == null ? null : "PO"),
+                useQuote ? quote!.DiscountPct : 0,
+                useQuote ? null : best?.Quantity,
+                useQuote ? null : best?.IssuedDate.ToString("yyyy-MM-dd"),
+                latest?.UnitCost, latest?.IssuedDate.ToString("yyyy-MM-dd"),
+                leadDays, mine.Count > 0, quote is not null, false));
         }
 
         // Cheapest first, then the untried suppliers alphabetically.

@@ -50,6 +50,13 @@ public record SaveProductRequest(
     [Required] string ImageUrl,
     bool IsNew = false);
 
+// ---------- Supplier price quotations ----------
+public record SaveSupplierPriceRequest(
+    [Range(1, int.MaxValue)] int SupplierId,
+    [Range(1, int.MaxValue)] int ProductId,
+    [Range(0.01, 9_999_999)] decimal UnitCost,
+    [Range(0, 90)] decimal DiscountPct);
+
 // ---------- Purchasing ----------
 public record CreatePurchaseOrderRequest(
     [Range(1, int.MaxValue)] int SupplierId,

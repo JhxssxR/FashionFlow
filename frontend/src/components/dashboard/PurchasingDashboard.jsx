@@ -144,7 +144,9 @@ const CompareTable = ({ productId, onOrder }) => {
             { key: 'supplier', label: 'Supplier', render: (r) => (<span>{r.supplier} {r.isBest ? <span className="stock-sev low">BEST PRICE</span> : (!r.hasHistory ? <span className="stock-sev none">NO HISTORY</span> : null)}</span>) },
             { key: 'location', label: 'Location' },
             { key: 'orders', label: 'POs' },
-            { key: 'best', label: 'Best cost', render: (r) => (r.bestUnitCost == null ? '—' : (<span>{peso(r.bestUnitCost)} <span style={{ color: '#8a8a8a' }}>at ×{r.bestQty}</span></span>)) },
+            { key: 'best', label: 'Best cost', render: (r) => (r.bestUnitCost == null ? '—' : (
+              <span>{peso(r.bestUnitCost)} <span style={{ color: '#8a8a8a' }}>{r.bestSource === 'QUOTE' ? `· −${r.bestDiscount}% quote` : `at ×${r.bestQty}`}</span></span>
+            )) },
             { key: 'last', label: 'Last cost', render: (r) => (r.lastUnitCost == null ? '—' : (<span>{peso(r.lastUnitCost)} <span style={{ color: '#8a8a8a' }}>· {fmtDate(r.lastDate)}</span></span>)) },
             { key: 'lead', label: 'Lead time', render: (r) => (r.leadDays == null ? '—' : `${r.leadDays} days`) },
             { key: 'onTime', label: 'On-time', render: (r) => `${r.onTime}%` },
@@ -156,6 +158,125 @@ const CompareTable = ({ productId, onOrder }) => {
         />
       )}
     </>
+  );
+};
+
+// Supplier quotation price lists: purchasing maintains each supplier's
+// per-item cost + discount here. The comparison above reads them live.
+const PriceLists = ({ suppliers, products }) => {
+  const [supplierId, setSupplierId] = useState('');
+  const [productId, setProductId] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [discount, setDiscount] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [tick, setTick] = useState(0);
+  const [delTarget, setDelTarget] = useState(null);
+  const [delBusy, setDelBusy] = useState(false);
+  const [delErr, setDelErr] = useState('');
+
+  const quotes = useApi(`/api/supplier-prices${supplierId ? `?supplierId=${supplierId}` : ''}`, [supplierId, tick]);
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (!supplierId) {
+      setErr('Choose a supplier first.');
+      return;
+    }
+    setBusy(true);
+    setErr('');
+    setMsg('');
+    try {
+      await api('/api/supplier-prices', {
+        method: 'PUT',
+        body: { supplierId: Number(supplierId), productId: Number(productId), unitCost: Number(unitCost), discountPct: Number(discount || 0) }
+      });
+      setMsg('Price saved — the comparison uses it immediately.');
+      setProductId('');
+      setUnitCost('');
+      setDiscount('');
+      setTick((t) => t + 1);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!delTarget || delBusy) return;
+    setDelBusy(true);
+    setDelErr('');
+    try {
+      await api(`/api/supplier-prices/${delTarget.id}`, { method: 'DELETE' });
+      setDelTarget(null);
+      setTick((t) => t + 1);
+    } catch (ex) {
+      setDelErr(ex.message);
+    } finally {
+      setDelBusy(false);
+    }
+  };
+
+  return (
+    <Panel title="Supplier price lists" subtitle="Each supplier's quoted cost + discount per item — this is what the comparison above ranks">
+      <form className="inline-form" onSubmit={save} style={{ marginBottom: 12 }}>
+        <div className="form-row">
+          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label="Supplier">
+            <option value="">Supplier…</option>
+            {(suppliers || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={productId} onChange={(e) => setProductId(e.target.value)} aria-label="Product" required>
+            <option value="">Product…</option>
+            {(products || []).map((p) => <option key={p.id} value={p.id}>{p.name} — {p.variant}</option>)}
+          </select>
+          <input type="number" min="1" step="0.01" placeholder="Unit cost ₱" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} required />
+          <input type="number" min="0" max="90" step="0.1" placeholder="Discount %" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+          <button className="mini-btn" type="submit" disabled={busy}>{busy ? 'SAVING…' : 'SAVE PRICE'}</button>
+        </div>
+        {err && <ErrorNote message={err} />}
+        {msg && <div className="form-ok">{msg}</div>}
+      </form>
+      <ErrorNote message={quotes.error} />
+      {quotes.loading && !quotes.data ? <Loading /> : (
+        <DataTable
+          keyField="id"
+          emptyTitle="NO QUOTED PRICES YET"
+          emptyNote="Save a supplier's cost + discount above — it appears in the comparison at once."
+          columns={[
+            { key: 'supplier', label: 'Supplier' },
+            { key: 'product', label: 'Item' },
+            { key: 'unitCost', label: 'Unit cost', render: (r) => peso(r.unitCost) },
+            { key: 'discount', label: 'Discount', render: (r) => (r.discountPct > 0 ? `−${r.discountPct}%` : '—') },
+            { key: 'effective', label: 'Effective', render: (r) => <strong>{peso(r.effective)}</strong> },
+            { key: 'updated', label: 'Updated', render: (r) => fmtDate(r.updated) },
+            { key: 'del', label: '', render: (r) => (<button type="button" className="link-btn danger" onClick={() => { setDelTarget(r); setDelErr(''); }}>DELETE</button>) }
+          ]}
+          rows={quotes.data || []}
+          pageSize={8}
+        />
+      )}
+      {delTarget && (
+        <div className="product-modal-overlay" onClick={() => !delBusy && setDelTarget(null)}>
+          <div className="receipt-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Delete quoted price">
+            <button className="product-modal-close" onClick={() => !delBusy && setDelTarget(null)} aria-label="Close">×</button>
+            <h3>Delete quoted price?</h3>
+            <p className="receipt-meta">{delTarget.supplier} — {delTarget.product} · {peso(delTarget.effective)}</p>
+            <p className="receipt-meta">The comparison will fall back to purchase-order history for this item.</p>
+            {delErr && <ErrorNote message={delErr} />}
+            <div className="verify-btns center" style={{ marginTop: 16 }}>
+              <button type="button" className="mini-btn" disabled={delBusy} onClick={() => setDelTarget(null)}>
+                KEEP IT
+              </button>
+              <button type="button" className="mini-btn verify-no" disabled={delBusy} onClick={remove}>
+                {delBusy ? 'DELETING…' : 'DELETE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Panel>
   );
 };
 
@@ -285,6 +406,7 @@ const PurchasingDashboard = ({ user }) => {
                   goTo('orders');
                 }}
               />
+              <PriceLists suppliers={suppliers.data} products={products.data} />
               <Panel title="Supplier directory" subtitle="Coordination contacts and performance">
                 <ErrorNote message={suppliers.error} />
                 {suppliers.loading ? <Loading /> : (
