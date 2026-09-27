@@ -71,6 +71,20 @@ public class InventoryController(FashionFlowDbContext db) : ControllerBase
         });
         db.SystemLogs.Add(Audit.Log(User.Email(),
             $"Stock adjustment: {product.Name} set to {req.NewQuantity} units{(string.IsNullOrEmpty(req.Note) ? "" : $" — {req.Note}")}", "Inventory"));
+
+        // Bell: a manual adjustment down across the reorder threshold flags
+        // inventory the same way a sale does (sales cover themselves in
+        // SaleService; upward adjustments stay silent).
+        if (req.NewQuantity < old)
+        {
+            var threshold = await LowStockThresholdAsync();
+            if (old > threshold && req.NewQuantity <= threshold)
+                await Notifications.PushRoleAsync(db, "InventoryManager",
+                    $"Low stock: {product.Name}",
+                    $"{req.NewQuantity} left after manual adjustment — at or below the reorder threshold ({threshold}).",
+                    "Inventory", "dashboard/inventory");
+        }
+
         await db.SaveChangesAsync();
 
         return Ok(new { ok = true, product.Stock });
