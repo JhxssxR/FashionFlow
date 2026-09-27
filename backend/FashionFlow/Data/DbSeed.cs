@@ -379,12 +379,13 @@ public static class DbSeed
 
     // GCash QR settings for the manual payment flow (idempotent: only adds
     // missing keys). The admin pastes the store's real QR image URL + account
-    // details in System Settings; until then a GCash logo placeholder shows.
+    // details in System Settings. Upgrades the old logo placeholder to the
+    // real store QR — custom admin URLs are never overwritten.
     public static async Task EnsurePaymentSettingsAsync(FashionFlowDbContext db)
     {
         var defaults = new (string Key, string Value)[]
         {
-            ("GcashQrImageUrl", "/assets/payments/gcash.png"),
+            ("GcashQrImageUrl", "/assets/payments/store-qr.png"),
             ("GcashAccountName", "FashionFlow"),
             ("GcashAccountNumber", "09XX-XXX-XXXX (set in System Settings)")
         };
@@ -393,6 +394,9 @@ public static class DbSeed
             if (!await db.AppSettings.AnyAsync(a => a.Key == key))
                 db.AppSettings.Add(new AppSetting { Key = key, Value = value });
         }
+        var qr = await db.AppSettings.FirstOrDefaultAsync(a => a.Key == "GcashQrImageUrl");
+        if (qr is not null && qr.Value == "/assets/payments/gcash.png")
+            qr.Value = "/assets/payments/store-qr.png";
 
         if (db.ChangeTracker.HasChanges())
         {

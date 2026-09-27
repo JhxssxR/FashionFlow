@@ -231,6 +231,10 @@ const GcashPayView = ({ orderNumber }) => {
       setErr('Enter the GCash reference number from your payment.');
       return;
     }
+    if (!receipt) {
+      setErr('Attach your GCash receipt screenshot — it is required.');
+      return;
+    }
     setBusy(true);
     setErr('');
     try {
@@ -298,15 +302,14 @@ const GcashPayView = ({ orderNumber }) => {
 
   return (
     <section className="checkout-page">
-      <div className="checkout-card">
+      <div className="checkout-card gcash-pay">
         <span className="login-form-tag">PAY WITH GCASH</span>
         <h2 className="checkout-title">{peso2(o.total)}</h2>
         <p className="checkout-sub">Order {o.id} · {o.items}</p>
         <div className="qr-wrap">
-          <img src={o.qr?.imageUrl || '/assets/payments/gcash.png'} alt="Store GCash QR code" className="qr-img" />
+          <img src={o.qr?.imageUrl || '/assets/payments/store-qr.png'} alt="Store GCash QR code" className="qr-img" />
           <div className="qr-meta">
             <strong>{o.qr?.accountName || 'FashionFlow'}</strong>
-            <span>{o.qr?.accountNumber || ''}</span>
           </div>
         </div>
         <ol className="qr-steps">
@@ -327,8 +330,8 @@ const GcashPayView = ({ orderNumber }) => {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="qr-receipt">RECEIPT SCREENSHOT (OPTIONAL, 2MB MAX)</label>
-            <input id="qr-receipt" type="file" accept="image/*" onChange={onFile} />
+            <label htmlFor="qr-receipt">RECEIPT SCREENSHOT (2MB MAX)</label>
+            <input id="qr-receipt" type="file" accept="image/*" onChange={onFile} required />
             {receiptName && <p className="field-hint">Attached: {receiptName}</p>}
           </div>
           {err && <p className="login-error" role="alert">{err}</p>}

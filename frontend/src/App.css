@@ -2138,6 +2138,42 @@
   font-size: 0.82rem;
   color: #555;
 }
+
+/* GCash QR payment hero: everything centered, oversized QR. */
+.checkout-card.gcash-pay {
+  text-align: center;
+}
+.checkout-card.gcash-pay .qr-wrap {
+  flex-direction: column;
+  gap: 14px;
+  padding: 26px 16px;
+}
+.checkout-card.gcash-pay .qr-img {
+  width: 220px;
+  height: 220px;
+}
+.checkout-card.gcash-pay .qr-meta {
+  align-items: center;
+}
+.checkout-card.gcash-pay .qr-steps {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  gap: 8px;
+  counter-reset: qr-step;
+}
+.checkout-card.gcash-pay .qr-steps li::before {
+  counter-increment: qr-step;
+  content: counter(qr-step) ". ";
+  font-weight: 700;
+}
+.checkout-card.gcash-pay .checkout-form label {
+  text-align: center;
+  display: block;
+}
+.checkout-card.gcash-pay .field-hint {
+  text-align: center;
+}
 @media (max-width: 480px) {
   .qr-wrap {
     flex-direction: column;
@@ -2146,6 +2182,13 @@
   .qr-img {
     width: 180px;
     height: 180px;
+  }
+  .checkout-card.gcash-pay .qr-img {
+    width: 200px;
+    height: 200px;
+  }
+  .checkout-card.gcash-pay .qr-wrap {
+    padding: 20px 12px;
   }
 }
 .pay-options {

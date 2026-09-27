@@ -375,7 +375,7 @@ public class PaymentsController(
         });
     }
 
-    // Customer submits GCash proof: reference number + optional receipt shot.
+    // Customer submits GCash proof: reference number + required receipt shot.
     // Moves the order Pending → Awaiting Verification for staff to check.
     [HttpPost("orders/{orderNumber}/payment-proof")]
     [Authorize(Roles = "Customer")]
@@ -394,14 +394,13 @@ public class PaymentsController(
         var refNo = (req.RefNo ?? "").Trim();
         if (refNo.Length < 4 || refNo.Length > 64)
             return BadRequest(new { message = "Enter the GCash reference number (at least 4 characters)." });
-        if (!string.IsNullOrEmpty(req.ReceiptImage))
-        {
-            if (!req.ReceiptImage.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(new { message = "Receipt must be an image file." });
-            if (req.ReceiptImage.Length > 2_800_000)
-                return BadRequest(new { message = "Receipt image is too large — 2MB max." });
-            order.ReceiptImage = req.ReceiptImage;
-        }
+        if (string.IsNullOrWhiteSpace(req.ReceiptImage))
+            return BadRequest(new { message = "Attach your GCash receipt screenshot — it is required." });
+        if (!req.ReceiptImage.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { message = "Receipt must be an image file." });
+        if (req.ReceiptImage.Length > 2_800_000)
+            return BadRequest(new { message = "Receipt image is too large — 2MB max." });
+        order.ReceiptImage = req.ReceiptImage;
 
         order.PaymentRefNo = refNo;
         order.Status = "Awaiting Verification";
