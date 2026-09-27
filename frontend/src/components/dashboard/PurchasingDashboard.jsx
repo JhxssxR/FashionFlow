@@ -145,9 +145,9 @@ const CompareTable = ({ productId, onOrder }) => {
             { key: 'location', label: 'Location' },
             { key: 'orders', label: 'POs' },
             { key: 'best', label: 'Best cost', render: (r) => (r.bestUnitCost == null ? '—' : (
-              <span>{peso(r.bestUnitCost)} <span style={{ color: '#8a8a8a' }}>{r.bestSource === 'QUOTE' ? `· −${r.bestDiscount}% quote` : `at ×${r.bestQty}`}</span></span>
+              <span>{peso(r.bestUnitCost)} <span style={{ color: '#5f5f5f' }}>{r.bestSource === 'QUOTE' ? `· −${r.bestDiscount}% quote` : `at ×${r.bestQty}`}</span></span>
             )) },
-            { key: 'last', label: 'Last cost', render: (r) => (r.lastUnitCost == null ? '—' : (<span>{peso(r.lastUnitCost)} <span style={{ color: '#8a8a8a' }}>· {fmtDate(r.lastDate)}</span></span>)) },
+            { key: 'last', label: 'Last cost', render: (r) => (r.lastUnitCost == null ? '—' : (<span>{peso(r.lastUnitCost)} <span style={{ color: '#5f5f5f' }}>· {fmtDate(r.lastDate)}</span></span>)) },
             { key: 'lead', label: 'Lead time', render: (r) => (r.leadDays == null ? '—' : `${r.leadDays} days`) },
             { key: 'onTime', label: 'On-time', render: (r) => `${r.onTime}%` },
             { key: 'rating', label: 'Rating', render: (r) => `★ ${r.rating}` },

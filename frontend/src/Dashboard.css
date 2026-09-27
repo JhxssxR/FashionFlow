@@ -15,7 +15,7 @@
   width: 252px;
   flex-shrink: 0;
   background: #0d0d0d;
-  color: #a3a3a3;
+  color: #c9c9c9;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -60,7 +60,7 @@
   border-radius: 8px;
   font-size: 0.86rem;
   font-weight: 500;
-  color: #a3a3a3;
+  color: #c9c9c9;
   border-left: 2px solid transparent;
   transition: all 0.15s ease;
 }
@@ -103,7 +103,7 @@
 
 .dash-user-meta span {
   font-size: 0.7rem;
-  color: #8a8a8a;
+  color: #c9c9c9;
 }
 
 .dash-avatar {
@@ -126,7 +126,7 @@
   font-family: var(--font-mono);
   font-size: 0.66rem;
   letter-spacing: 1.5px;
-  color: #8a8a8a;
+  color: #c9c9c9;
   transition: color 0.15s ease;
   text-align: center;
 }
@@ -138,11 +138,11 @@
 /* Destructive action gets its own colour so it never blends in with
    plain navigation links (his ask: "the log out should be red"). */
 .dash-signout {
-  color: #e88a92;
+  color: #c0392b;
 }
 
 .dash-signout:hover {
-  color: #ffb3bb;
+  color: #e05252;
 }
 
 /* ---------- Main area ---------- */
@@ -207,7 +207,7 @@
 
 .dash-page-date {
   font-size: 0.78rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
   margin-top: 2px;
 }
 
@@ -296,7 +296,7 @@
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 2px;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .notif-panel-head button {
@@ -381,7 +381,7 @@
 .notif-empty {
   padding: 28px 16px;
   text-align: center;
-  color: #8a8a8a;
+  color: #5f5f5f;
   font-size: 0.78rem;
 }
 
@@ -447,7 +447,7 @@
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 1.6px;
-  color: #8a8a8a;
+  color: #5f5f5f;
   text-align: left;
 }
 
@@ -465,7 +465,7 @@
 
 .stat-sub {
   font-size: 0.75rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
   display: block;
   width: 100%;
   text-align: right;
@@ -495,7 +495,7 @@
 
 .panel-subtitle {
   font-size: 0.76rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
   margin-top: 3px;
 }
 
@@ -535,13 +535,13 @@
 }
 
 .link-btn.danger {
-  color: #d1766e;
+  color: #c0392b;
 }
 
 .panel-footnote {
   margin-top: 12px;
   font-size: 0.78rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .panel-footnote strong {
@@ -571,7 +571,7 @@
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
 }
 
 .data-table th {
@@ -580,7 +580,7 @@
   font-weight: 600;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: #8a8a8a;
+  color: #5f5f5f;
   text-align: left;
   padding: 8px 10px;
   border-bottom: 1px solid #e7e7e4;
@@ -600,7 +600,7 @@
   background: #faf9f7;
 }
 
-.danger-text { color: #d1766e; }
+.danger-text { color: #c0392b; }
 .warn-text { color: #b89547; }
 
 /* ---------- Status badges ---------- */
@@ -610,15 +610,14 @@
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.8px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 0;
 }
 
-.status-ok { background: #e6f4ec; color: #2f7d55; }
-.status-info { background: #ece9fb; color: #5d43d6; }
-.status-warn { background: #faf0dc; color: #a07c22; }
-.status-bad { background: #fae7e5; color: #c9827b; }
-.status-neutral { background: #efefec; color: #6f6f6f; }
+.status-ok { color: #2fa266; }
+.status-info { color: #6a54e0; }
+.status-warn { color: #bd8f1c; }
+.status-bad { color: #c0392b; }
+.status-neutral { color: #6f6f6f; }
 
 /* ---------- Legend ---------- */
 .legend-list {
@@ -660,7 +659,7 @@
 }
 
 .util-head span {
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .util-bar {
@@ -707,7 +706,7 @@
 
 .mini-meta span {
   font-size: 0.72rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .mini-btn {
@@ -768,7 +767,7 @@
   font-family: var(--font-mono);
   font-size: 0.62rem;
   letter-spacing: 1.2px;
-  color: #8a8a8a;
+  color: #5f5f5f;
   text-align: center;
 }
 
@@ -799,9 +798,6 @@
   font-size: 0.7rem;
   letter-spacing: 1px;
   color: var(--accent-color);
-  background: rgba(205, 168, 88, 0.1);
-  border-radius: 6px;
-  padding: 4px 8px;
   flex-shrink: 0;
 }
 
@@ -810,7 +806,7 @@
   background: #0d0d0d;
   border-radius: 14px;
   padding: 22px;
-  color: #a3a3a3;
+  color: #c9c9c9;
 }
 
 .loyalty-top {
@@ -908,7 +904,7 @@
 
 .reco-card span {
   font-size: 0.72rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .reco-card em {
@@ -921,7 +917,7 @@
 /* ---------- Login additions ---------- */
 .login-error {
   font-size: 0.78rem;
-  color: #c9827b;
+  color: #c0392b;
   background: #fae7e5;
   border-radius: 8px;
   padding: 10px 14px;
@@ -951,7 +947,7 @@
 
 .reward-card span {
   font-size: 0.72rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
   flex: 1;
 }
 
@@ -992,12 +988,12 @@
 
 .form-group input.input-error,
 .form-group input.input-error:focus {
-  border-color: #c9827b;
+  border-color: #c0392b;
 }
 
 .field-error {
   font-size: 0.72rem;
-  color: #c9827b;
+  color: #c0392b;
 }
 
 .login-divider {
@@ -1067,12 +1063,12 @@
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 2px;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .table-empty-note {
   font-size: 0.8rem;
-  color: #a3a3a3;
+  color: #6f6f6f;
   max-width: 460px;
   line-height: 1.55;
 }
@@ -1095,7 +1091,7 @@
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 1.6px;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .settings-row input {
@@ -1141,7 +1137,7 @@
 
 .pos-product span {
   font-size: 0.68rem;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .pos-product em {
@@ -1164,7 +1160,7 @@
   font-family: var(--font-mono);
   font-size: 0.7rem;
   letter-spacing: 2px;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 
 .pos-total strong {
@@ -1302,7 +1298,7 @@
 .api-error {
   background: #fdf1f0;
   border: 1px solid #f0c9c6;
-  color: #b9746d;
+  color: #c0392b;
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 13px;
@@ -1557,7 +1553,7 @@
 .ring-center span {
   font-size: 0.62rem;
   letter-spacing: 1px;
-  color: #a3a3a3;
+  color: #c9c9c9;
 }
 .loyalty-ringtext {
   display: flex;
@@ -1574,21 +1570,16 @@
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 1px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: #e6f4ec;
-  color: #2f7d55;
+  color: #2fa266;
   margin-left: 8px;
   vertical-align: middle;
   white-space: nowrap;
 }
 .countdown-chip.urgent {
-  background: #fae7e5;
-  color: #c9827b;
+  color: #c0392b;
 }
 .countdown-chip.expired {
-  background: #efefec;
-  color: #8a8a8a;
+  color: #5f5f5f;
 }
 .filter-tag .countdown-chip {
   margin: 6px 0 0;
@@ -1641,21 +1632,16 @@
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 1px;
-  padding: 4px 10px;
-  border-radius: 999px;
   white-space: nowrap;
 }
 .stock-sev.low {
-  background: #f7e8c8;
   color: #8a6d1f;
 }
 .stock-sev.critical,
 .stock-sev.out {
-  background: #c0392b;
-  color: #fff;
+  color: #c0392b;
 }
 .stock-sev.none {
-  background: #efefec;
   color: #6f6f6f;
 }
 .stock-banner .mini-btn {
@@ -1703,7 +1689,7 @@
     font-family: var(--font-mono);
     font-size: 0.6rem;
     letter-spacing: 2px;
-    color: #a3a3a3;
+    color: #c9c9c9;
   }
   .pos-stickybar-info strong {
     font-family: var(--font-display);
@@ -1740,7 +1726,7 @@
 }
 .mini-btn.verify-no {
   background: #fff;
-  color: #c9827b;
+  color: #c0392b;
   border: 1px solid #f3d5d1;
 }
 .mini-btn.verify-no:hover {
