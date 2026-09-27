@@ -244,7 +244,7 @@ const SupplierDashboard = ({ user }) => {
               {orders.loading && !orders.data ? <Loading /> : (
                 <DataTable keyField="purchaseId" emptyTitle="NO PURCHASE ORDERS YET"
                   emptyNote="When FashionFlow issues a purchase order to you, it appears here for acceptance and status updates."
-                  columns={orderColumns(true)} rows={rows.slice(0, 8)} />
+                    columns={orderColumns(true)} rows={rows.slice(0, 8)} pageSize={8} />
               )}
             </Panel>
           </>

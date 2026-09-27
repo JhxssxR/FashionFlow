@@ -703,6 +703,7 @@ const AdminDashboard = ({ user }) => {
                     { key: 'type', label: 'Type' }
                   ]}
                   rows={(logs.data || []).slice(0, 8)}
+                  pageSize={8}
                 />
               )}
             </Panel>

@@ -327,6 +327,7 @@ const SalesDashboard = ({ user }) => {
                       { key: 'amount', label: 'Amount', render: (r) => peso(r.amount) }
                     ]}
                     rows={data?.byPayment || []}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -396,6 +397,7 @@ const SalesDashboard = ({ user }) => {
                       { key: 'loyalty', label: 'Loyalty' }
                     ]}
                     rows={recentRows}
+                    pageSize={10}
                   />
                 )}
               </Panel>
@@ -412,6 +414,7 @@ const SalesDashboard = ({ user }) => {
                       { key: 'points', label: 'Points', render: (r) => num(r.points) }
                     ]}
                     rows={topMembers}
+                    pageSize={8}
                   />
                 </Panel>
 
@@ -425,6 +428,7 @@ const SalesDashboard = ({ user }) => {
                       { key: 'description', label: 'Deal' }
                     ]}
                     rows={activePromos}
+                    pageSize={8}
                   />
                 </Panel>
               </div>

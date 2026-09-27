@@ -209,6 +209,7 @@ const AccountantDashboard = ({ user }) => {
                   { key: 'amount', label: 'Amount', render: (r) => peso(r.amount) }
                 ]}
                 rows={(d.payables || []).slice(0, 6)}
+                pageSize={10}
               />
             </Panel>
           </>

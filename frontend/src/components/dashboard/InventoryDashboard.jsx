@@ -520,6 +520,7 @@ const InventoryDashboard = ({ user }) => {
                     { key: 'status', label: 'Status' }
                   ]}
                   rows={deliveredRows}
+                  pageSize={8}
                 />
               </Panel>
             </>
