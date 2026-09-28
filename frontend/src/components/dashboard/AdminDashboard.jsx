@@ -230,20 +230,13 @@ const OnlineOrders = () => {
                 key: 'next',
                 label: 'Delivery',
                 render: (r) => {
-                  // GCash proof submitted — inspect the receipt, then decide.
+                  // GCash proof submitted — inspect the receipt in the modal,
+                  // then verify or reject there.
                   if (r.status === 'Awaiting Verification') {
                     return (
-                      <div className="verify-btns">
-                        <button className="mini-btn" disabled={busyId === r.id} onClick={() => viewProof(r)}>
-                          VIEW RECEIPT
-                        </button>
-                        <button className="mini-btn verify-ok" disabled={busyId === r.id} onClick={() => verify(r.id, true)}>
-                          {busyId === r.id ? 'SAVING…' : 'VERIFY ✓'}
-                        </button>
-                        <button className="mini-btn verify-no" disabled={busyId === r.id} onClick={() => verify(r.id, false)}>
-                          REJECT
-                        </button>
-                      </div>
+                      <button className="mini-btn" disabled={busyId === r.id} onClick={() => viewProof(r)}>
+                        VIEW RECEIPT
+                      </button>
                     );
                   }
                   const next = getNextDeliveryStep(r);
@@ -280,7 +273,7 @@ const OnlineOrders = () => {
             ) : (
               <p className="receipt-meta">No receipt image — verify against the reference number.</p>
             )}
-            <div className="verify-btns">
+            <div className="verify-btns center" style={{ marginTop: 16 }}>
               <button className="mini-btn verify-ok" disabled={busyId === proof.id} onClick={() => verify(proof.id, true)}>
                 {busyId === proof.id ? 'SAVING…' : 'VERIFY ✓'}
               </button>

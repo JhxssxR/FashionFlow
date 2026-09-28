@@ -607,17 +607,19 @@
 .status-badge {
   display: inline-block;
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.8px;
-  padding: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
-.status-ok { color: #2fa266; }
-.status-info { color: #6a54e0; }
-.status-warn { color: #bd8f1c; }
-.status-bad { color: #c0392b; }
-.status-neutral { color: #6f6f6f; }
+.status-ok { background: #e6f4ec; color: #2fa266; }
+.status-info { background: #ece9fb; color: #6a54e0; }
+.status-warn { background: #faf0dc; color: #bd8f1c; }
+.status-bad { background: #fae7e5; color: #c0392b; }
+.status-neutral { background: #efefec; color: #6f6f6f; }
 
 /* ---------- Legend ---------- */
 .legend-list {
