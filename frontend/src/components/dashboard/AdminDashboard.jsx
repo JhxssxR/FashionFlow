@@ -7,7 +7,7 @@ import DashboardLayout from './DashboardLayout';
 import { StatCard, Panel, DataTable, EmptyState, StatusBadge, Loading, ErrorNote, Pager, SkeletonCards, StockAlertBanner } from './DashboardShared';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi, api } from '../../api/client';
-import { peso, num, CHART_COLORS, fmtDate, fmtDateTime, downloadCsv } from '../../utils';
+import { peso, num, CHART_COLORS, fmtDate, fmtDateTime, downloadPdf, downloadExcel } from '../../utils';
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 const donutColors = [CHART_COLORS.gold, CHART_COLORS.dark, CHART_COLORS.purple, CHART_COLORS.green, '#b9b9b9'];
@@ -470,16 +470,28 @@ const AdminDashboard = ({ user }) => {
                 {salesRange.loading ? <Loading /> : (
                   <>
                     {revenueChartFor(repSeries)}
-                    <button
-                      className="mini-btn"
-                      onClick={() => downloadCsv(`sales-summary-${repFile}.csv`, [
-                        { key: 'date', label: 'Date' },
-                        { key: 'revenue', label: 'Revenue' },
-                        { key: 'orders', label: 'Orders' }
-                      ], repSeries)}
-                    >
-                      DOWNLOAD CSV
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        className="mini-btn"
+                        onClick={() => downloadPdf(`sales-summary-${repFile}.pdf`, `Revenue — ${repLabel}`, [
+                          { key: 'date', label: 'Date' },
+                          { key: 'revenue', label: 'Revenue' },
+                          { key: 'orders', label: 'Orders' }
+                        ], repSeries)}
+                      >
+                        DOWNLOAD PDF
+                      </button>
+                      <button
+                        className="mini-btn"
+                        onClick={() => downloadExcel(`sales-summary-${repFile}.xlsx`, [
+                          { key: 'date', label: 'Date' },
+                          { key: 'revenue', label: 'Revenue' },
+                          { key: 'orders', label: 'Orders' }
+                        ], repSeries)}
+                      >
+                        DOWNLOAD EXCEL
+                      </button>
+                    </div>
                   </>
                 )}
               </Panel>
@@ -512,20 +524,36 @@ const AdminDashboard = ({ user }) => {
                       rows={salesRange.data?.byProduct || []}
                       pageSize={10}
                     />
-                    <button
-                      className="mini-btn"
-                      onClick={() => downloadCsv(`sales-by-item-${repFile}.csv`, [
-                        { key: 'name', label: 'Item' },
-                        { key: 'variant', label: 'Variant' },
-                        { key: 'units', label: 'Units sold' },
-                        { key: 'revenue', label: 'Revenue' },
-                        { key: 'lastSold', label: 'Last sold' },
-                        { key: 'orders', label: 'Orders' },
-                        { key: 'share', label: 'Share %' }
-                      ], salesRange.data?.byProduct || [])}
-                    >
-                      DOWNLOAD ITEMS CSV
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        className="mini-btn"
+                        onClick={() => downloadPdf(`sales-by-item-${repFile}.pdf`, `Revenue by item — ${repLabel}`, [
+                          { key: 'name', label: 'Item' },
+                          { key: 'variant', label: 'Variant' },
+                          { key: 'units', label: 'Units sold' },
+                          { key: 'revenue', label: 'Revenue' },
+                          { key: 'lastSold', label: 'Last sold' },
+                          { key: 'orders', label: 'Orders' },
+                          { key: 'share', label: 'Share %' }
+                        ], salesRange.data?.byProduct || [])}
+                      >
+                        DOWNLOAD PDF
+                      </button>
+                      <button
+                        className="mini-btn"
+                        onClick={() => downloadExcel(`sales-by-item-${repFile}.xlsx`, [
+                          { key: 'name', label: 'Item' },
+                          { key: 'variant', label: 'Variant' },
+                          { key: 'units', label: 'Units sold' },
+                          { key: 'revenue', label: 'Revenue' },
+                          { key: 'lastSold', label: 'Last sold' },
+                          { key: 'orders', label: 'Orders' },
+                          { key: 'share', label: 'Share %' }
+                        ], salesRange.data?.byProduct || [])}
+                      >
+                        DOWNLOAD EXCEL
+                      </button>
+                    </div>
                   </>
                 )}
               </Panel>

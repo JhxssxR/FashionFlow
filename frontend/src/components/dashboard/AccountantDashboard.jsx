@@ -8,7 +8,7 @@ import { StatCard, Panel, DataTable, Loading, ErrorNote, DateRangePicker } from 
 import { useReportRange } from './useReportRange';
 import SavedReportsPanel from './SavedReportsPanel';
 import { useApi } from '../../api/client';
-import { downloadCsv } from '../../utils';
+import { downloadPdf, downloadExcel } from '../../utils';
 import { peso, num, CHART_COLORS, fmtDate } from '../../utils';
 
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
@@ -96,16 +96,28 @@ const AccountantDashboard = ({ user }) => {
                 {finance.loading ? <Loading /> : (
                   <>
                     {monthlyChart}
-                    <button
-                      className="mini-btn"
-                      onClick={() => downloadCsv('financial-monthly.csv', [
-                        { key: 'month', label: 'Month' },
-                        { key: 'revenue', label: 'Revenue' },
-                        { key: 'expenses', label: 'Expenses' }
-                      ], d.monthly || [])}
-                    >
-                      DOWNLOAD CSV
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        className="mini-btn"
+                        onClick={() => downloadPdf('financial-monthly.pdf', 'Monthly revenue vs expenses', [
+                          { key: 'month', label: 'Month' },
+                          { key: 'revenue', label: 'Revenue' },
+                          { key: 'expenses', label: 'Expenses' }
+                        ], d.monthly || [])}
+                      >
+                        DOWNLOAD PDF
+                      </button>
+                      <button
+                        className="mini-btn"
+                        onClick={() => downloadExcel('financial-monthly.xlsx', [
+                          { key: 'month', label: 'Month' },
+                          { key: 'revenue', label: 'Revenue' },
+                          { key: 'expenses', label: 'Expenses' }
+                        ], d.monthly || [])}
+                      >
+                        DOWNLOAD EXCEL
+                      </button>
+                    </div>
                   </>
                 )}
               </Panel>

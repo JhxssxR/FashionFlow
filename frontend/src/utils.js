@@ -1,4 +1,7 @@
 // Shared formatting helpers and chart palette for every dashboard.
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export const peso = (n) =>
   '₱' + Math.round(Number(n) || 0).toLocaleString('en-PH', { maximumFractionDigits: 0 });
@@ -41,22 +44,43 @@ export function statusTone(status) {
   }
 }
 
-// Client-side CSV export for report tables — no backend round-trip. The BOM
-// keeps Excel happy with ₱ signs and other non-ASCII text.
-export function downloadCsv(filename, columns, rows) {
-  const esc = (v) => {
-    const s = String(v ?? '');
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
-  const cell = (c, r) => (typeof c.value === 'function' ? c.value(r) : r[c.key]);
-  const lines = [columns.map((c) => esc(c.label)).join(',')];
-  for (const r of rows) lines.push(columns.map((c) => esc(cell(c, r))).join(','));
-  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
+// Client-side report exports — no backend round-trip. Cells keep raw numbers
+// (Excel sums them; PDFs print them as-is).
+const exportCell = (v) => {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return Number.isInteger(v) ? v : Math.round(v * 100) / 100;
+  return String(v);
+};
+
+export function downloadPdf(filename, title, columns, rows) {
+  const doc = new jsPDF({ unit: 'pt' });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text(title, 40, 44);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(130);
+  doc.text(`FashionFlow · ${new Date().toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`, 40, 60);
+  autoTable(doc, {
+    startY: 76,
+    head: [columns.map((c) => c.label)],
+    body: rows.map((r) => columns.map((c) => exportCell(r[c.key]))),
+    styles: { fontSize: 9, cellPadding: 6 },
+    headStyles: { fillColor: [13, 13, 13], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [250, 250, 249] }
+  });
+  doc.save(filename);
+}
+
+export function downloadExcel(filename, columns, rows) {
+  const data = rows.map((r) =>
+    Object.fromEntries(columns.map((c) => [c.label, exportCell(r[c.key])]))
+  );
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = columns.map(() => ({ wch: 22 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Report');
+  XLSX.writeFile(wb, filename);
 }
 
 // "2026-09-04" → "Sep 4, 2026" without Date parsing surprises.

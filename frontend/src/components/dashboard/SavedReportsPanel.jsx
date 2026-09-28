@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Panel, DataTable, Loading, ErrorNote } from './DashboardShared';
 import { useApi, api } from '../../api/client';
-import { fmtDateTime, downloadCsv } from '../../utils';
+import { fmtDateTime, downloadPdf, downloadExcel } from '../../utils';
 
 export const SavedReportsPanel = ({
   role = 'admin',
@@ -64,18 +64,20 @@ export const SavedReportsPanel = ({
 
   const canDelete = role === 'admin' || role === 'accountant';
 
-  const exportReport = (r) => {
-    const filename = `${r.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.csv`;
-    downloadCsv(
-      filename,
-      [
-        { key: 'title', label: 'Report Title' },
-        { key: 'type', label: 'Report Type' },
-        { key: 'date', label: 'Timestamp' },
-        { key: 'generatedBy', label: 'Author' }
-      ],
-      [r]
-    );
+  const exportColumns = [
+    { key: 'title', label: 'Report Title' },
+    { key: 'type', label: 'Report Type' },
+    { key: 'date', label: 'Timestamp' },
+    { key: 'generatedBy', label: 'Author' }
+  ];
+
+  const exportReport = (r, format) => {
+    const slug = `${r.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+    if (format === 'excel') {
+      downloadExcel(`${slug}.xlsx`, exportColumns, [r]);
+    } else {
+      downloadPdf(`${slug}.pdf`, r.title, exportColumns, [r]);
+    }
   };
 
   const now = new Date();
@@ -175,9 +177,16 @@ export const SavedReportsPanel = ({
                   <button
                     type="button"
                     className="link-btn"
-                    onClick={() => exportReport(r)}
+                    onClick={() => exportReport(r, 'pdf')}
                   >
-                    EXPORT
+                    PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => exportReport(r, 'excel')}
+                  >
+                    EXCEL
                   </button>
                   {canDelete && (
                     <button
