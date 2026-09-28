@@ -23,7 +23,8 @@ public class SaleService(FashionFlowDbContext db)
         decimal discount = 0,
         string actorEmail = "system",
         int? totalPointsOverride = null,
-        string? logNote = null)
+        string? logNote = null,
+        string? paymentRefNo = null)
     {
         var subtotal = lines.Sum(l => l.Product.Price * l.Quantity);
         var total = subtotal - discount;
@@ -64,6 +65,7 @@ public class SaleService(FashionFlowDbContext db)
                 TotalAmount = product.Price * qty,
                 Date = when,
                 PaymentMethod = paymentMethod,
+                PaymentRefNo = paymentRefNo,
                 Channel = channel,
                 LoyaltyPointsEarned = customer is null ? 0 : linePoints[i]
             });

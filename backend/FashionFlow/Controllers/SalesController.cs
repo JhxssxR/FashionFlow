@@ -11,10 +11,10 @@ namespace FashionFlow.Controllers;
 [Route("api/sales")]
 public class SalesController(FashionFlowDbContext db, SaleService sales) : ControllerBase
 {
-    private static readonly string[] PaymentMethods = ["Cash", "Card", "GCash", "Maya"];
+    private static readonly string[] PaymentMethods = ["Cash", "GCash"];
 
     private static string HourLabel(int hour) =>
-        hour == 12 ? "12 NN" : hour < 12 ? $"{hour} AM" : $"{hour - 12} PM";
+        hour == 0 ? "12 MN" : hour == 12 ? "12 NN" : hour < 12 ? $"{hour} AM" : $"{hour - 12} PM";
 
     // One row per receipt (a sale transaction spans several Sale lines).
     private static object ReceiptRow(string receipt, DateTime time, string customer, int items,
@@ -66,7 +66,7 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
         var rawHours = todays.GroupBy(s => s.Date.Hour)
             .Select(g => new { Hour = g.Key, Sales = g.Sum(s => s.TotalAmount), Tx = g.GroupBy(s => s.ReceiptNo).Count() })
             .ToDictionary(x => x.Hour);
-        var byHour = Enumerable.Range(9, 13) // 9 AM – 9 PM window, POS hours
+        var byHour = Enumerable.Range(0, 24) // full day, so late-night sales always have a bar
             .Select(h => new
             {
                 hour = HourLabel(h),
@@ -160,11 +160,17 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
     [Authorize(Roles = "Admin,SalesStaff")]
     public async Task<IActionResult> Charge(CreateSaleRequest req)
     {
-        // Match the canonical casing ("GCash", "Maya", …) case-insensitively.
+        // Match the canonical casing ("GCash") case-insensitively.
         var method = PaymentMethods.FirstOrDefault(m =>
             string.Equals(m, req.PaymentMethod.Trim(), StringComparison.OrdinalIgnoreCase));
         if (method is null)
-            return BadRequest(new { message = "Payment method must be Cash, Card, GCash or Maya." });
+            return BadRequest(new { message = "Payment method must be Cash or GCash." });
+
+        // POS GCash works like online checkout: no charge without the
+        // reference number from the customer's GCash receipt.
+        var refNo = (req.RefNo ?? "").Trim();
+        if (method == "GCash" && (refNo.Length < 4 || refNo.Length > 64))
+            return BadRequest(new { message = "Enter the GCash reference number from the customer's payment." });
 
         var customer = req.CustomerId is int cid
             ? await db.Customers.FirstOrDefaultAsync(c => c.CustomerId == cid)
@@ -233,13 +239,27 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
             paymentMethod: method,
             channel: "POS",
             receiptNo: receipt,
-            when: DateTime.Now,
+            when: PhTime.Now,
             discount: discount,
             actorEmail: User.Email(),
             totalPointsOverride: pointsEarned,
-            logNote: discount > 0 ? $"promo {promo!.Code}" : null);
+            logNote: discount > 0 ? $"promo {promo!.Code}" : null,
+            paymentRefNo: method == "GCash" ? refNo : null);
 
         if (promo is not null && discount > 0) promo.Uses++;
+
+        // Bell: the registered customer sees their loyalty award (walk-ins
+        // have no account to notify; staff aren't rung for every receipt).
+        if (customer is not null && pointsEarned > 0)
+        {
+            var racc = await db.Users.FirstOrDefaultAsync(u => u.CustomerId == customer.CustomerId);
+            if (racc is not null)
+                Notifications.Push(db, racc.UserId,
+                    $"+{pointsEarned} pts earned",
+                    $"{customer.Name} earned {pointsEarned} loyalty points from {receipt} ({customer.Tier}).",
+                    "Loyalty", "dashboard/customer");
+        }
+
         await db.SaveChangesAsync();
         await tx.CommitAsync();
 
