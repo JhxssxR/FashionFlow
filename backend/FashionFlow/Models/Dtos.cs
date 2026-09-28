@@ -30,7 +30,9 @@ public record CreateSaleRequest(
     int? CustomerId,
     [Required, MinLength(1)] List<SaleItemRequest> Items,
     [Required] string PaymentMethod,
-    string? PromoCode);
+    string? PromoCode,
+    // GCash reference typed by the cashier — required when paying by GCash.
+    string? RefNo);
 
 // ---------- Inventory ----------
 public record AdjustStockRequest(

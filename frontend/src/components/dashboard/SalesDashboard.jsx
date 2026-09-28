@@ -10,11 +10,12 @@ import { peso, peso2, num, CHART_COLORS, fmtTime, fmtDate } from '../../utils';
 const AXIS = { stroke: '#9a9a9a', fontSize: 11 };
 
 // ---------- POS terminal ----------
-const PosTerminal = ({ products, customers, onCharged }) => {
+const PosTerminal = ({ products, customers, cashier, onCharged }) => {
   const [cart, setCart] = useState([]); // [{ productId, name, variant, price, quantity }]
   const [customerId, setCustomerId] = useState('');
   const [promoCode, setPromoCode] = useState('');
   const [payment, setPayment] = useState('Cash');
+  const [gcashRef, setGcashRef] = useState('');
   const [result, setResult] = useState(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -61,9 +62,23 @@ const PosTerminal = ({ products, customers, onCharged }) => {
 
   const charge = async () => {
     if (cart.length === 0 || charging.current) return;
+    if (payment === 'GCash' && gcashRef.trim().length < 4) {
+      setErr("Enter the GCash reference number from the customer's payment.");
+      return;
+    }
     charging.current = true;
     setBusy(true);
     setErr('');
+    // Snapshot everything the PNG receipt needs before the cart clears.
+    const snapshot = {
+      lines: cart.map((l) => ({ name: l.name, qty: l.quantity, price: l.price })),
+      subtotal,
+      payMethod: payment,
+      buyer: customer ? customer.name : 'Walk-in',
+      promo: promoCode.trim() || null,
+      cashier: cashier || 'Cashier',
+      date: new Date().toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    };
     try {
       const res = await api('/api/sales', {
         method: 'POST',
@@ -71,12 +86,23 @@ const PosTerminal = ({ products, customers, onCharged }) => {
           customerId: customerId ? Number(customerId) : null,
           items: cart.map((l) => ({ productId: l.productId, quantity: l.quantity })),
           paymentMethod: payment,
-          promoCode: promoCode.trim() || null
+          promoCode: promoCode.trim() || null,
+          refNo: payment === 'GCash' ? gcashRef.trim() : null
         }
       });
-      setResult(res);
+      setResult({
+        ...res,
+        lines: snapshot.lines,
+        payMethod: snapshot.payMethod,
+        buyer: snapshot.buyer,
+        promoUsed: snapshot.promo,
+        cashier: snapshot.cashier,
+        dateStr: snapshot.date,
+        refNo: payment === 'GCash' ? gcashRef.trim() : null
+      });
       setCart([]);
       setPromoCode('');
+      setGcashRef('');
       onCharged?.();
     } catch (ex) {
       setErr(ex.message);
@@ -108,6 +134,9 @@ const PosTerminal = ({ products, customers, onCharged }) => {
             {result.discount > 0 && <span>Promo discount — {peso2(result.discount)}</span>}
             <span>Total charged — {peso2(result.total)}</span>
             {result.pointsEarned > 0 && <span>{result.customer?.name} earned {result.pointsEarned} pts ({result.customer?.tier})</span>}
+            <button className="mini-btn wide" onClick={() => window.print()}>
+              PRINT RECEIPT
+            </button>
             <button className="mini-btn wide" onClick={() => setResult(null)}>NEW SALE</button>
           </div>
         ) : (
@@ -145,10 +174,19 @@ const PosTerminal = ({ products, customers, onCharged }) => {
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                 />
-                <select value={payment} onChange={(e) => setPayment(e.target.value)}>
-                  {['Cash', 'Card', 'GCash', 'Maya'].map((m) => <option key={m}>{m}</option>)}
+                <select value={payment} onChange={(e) => { setPayment(e.target.value); setErr(''); }}>
+                  {['Cash', 'GCash'].map((m) => <option key={m}>{m}</option>)}
                 </select>
               </div>
+              {payment === 'GCash' && (
+                <input
+                  placeholder="GCash ref number (required)"
+                  value={gcashRef}
+                  onChange={(e) => setGcashRef(e.target.value)}
+                  aria-label="GCash reference number"
+                  style={{ marginTop: 10 }}
+                />
+              )}
             </div>
             {err && <ErrorNote message={err} />}
             <div className="pos-total">
@@ -173,6 +211,31 @@ const PosTerminal = ({ products, customers, onCharged }) => {
           </>
         )}
       </Panel>
+      {result && (
+        <div className="print-only" aria-hidden="true">
+          <div className="print-receipt">
+            <h2>FASHIONFLOW</h2>
+            <p>OFFICIAL RECEIPT</p>
+            <p>Receipt: {result.receipt}</p>
+            <p>{result.dateStr}</p>
+            <p>Cashier: {result.cashier}</p>
+            <p>Customer: {result.buyer}</p>
+            <hr />
+            {(result.lines || []).map((l) => (
+              <p key={l.productId ?? l.name}>{l.name} x{l.qty} — {peso(l.price * l.qty)}</p>
+            ))}
+            <hr />
+            <p>Subtotal: {peso(result.subtotal)}</p>
+            {result.discount > 0 && <p>Discount{result.promoUsed ? ` (${result.promoUsed})` : ''}: −{peso(result.discount)}</p>}
+            <p><strong>TOTAL: {peso(result.total)}</strong></p>
+            <p>Paid via {result.payMethod}</p>
+            {result.refNo && <p>GCash ref: {result.refNo}</p>}
+            {result.pointsEarned > 0 && <p>Loyalty earned: +{result.pointsEarned} pts</p>}
+            <hr />
+            <p>Thank you for shopping!</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -235,7 +298,7 @@ const SalesDashboard = ({ user }) => {
     <DashboardLayout role="sales" user={user}>
       {(page) => {
         if (page === 'pos') {
-          return <PosTerminal products={products.data} customers={customersQ.data} onCharged={() => products.reload(true)} />;
+          return <PosTerminal products={products.data} customers={customersQ.data} cashier={user?.name} onCharged={() => { products.reload(true); today.reload(true); hourData.reload(true); recent.reload(true); customersQ.reload(true); }} />;
         }
 
         if (page === 'customers') {
@@ -334,9 +397,9 @@ const SalesDashboard = ({ user }) => {
               <Panel title="Sales by hour — today" subtitle="POS terminal performance">
                 {today.loading ? <Loading /> : (
                   <ResponsiveContainer width="100%" height={270}>
-                    <BarChart data={data?.byHour || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                      <XAxis dataKey="hour" tick={AXIS} tickLine={false} axisLine={false} />
+                  <BarChart data={data?.byHour || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                    <XAxis dataKey="hour" tick={AXIS} tickLine={false} axisLine={false} interval={1} />
                       <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                       <Tooltip formatter={(v) => [peso(v), 'Sales']} />
                       <Bar dataKey="sales" fill={CHART_COLORS.gold} radius={[4, 4, 0, 0]} barSize={26} />
@@ -370,7 +433,7 @@ const SalesDashboard = ({ user }) => {
                 <ResponsiveContainer width="100%" height={270}>
                   <BarChart data={hourData.data?.byHour || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                    <XAxis dataKey="hour" tick={AXIS} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="hour" tick={AXIS} tickLine={false} axisLine={false} interval={1} />
                     <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => `${v / 1000}k`} />
                     <Tooltip formatter={(v) => [peso(v), 'Sales']} />
                     <Bar dataKey="sales" fill={CHART_COLORS.gold} radius={[4, 4, 0, 0]} barSize={26} />

@@ -12,8 +12,11 @@ public class Sale
     public decimal UnitPrice { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime Date { get; set; }
-    // Cash | Card | GCash | Maya
+    // Cash | Card | GCash
     public string PaymentMethod { get; set; } = "Cash";
+    // GCash reference number for POS GCash sales (typed by the cashier from
+    // the customer's phone) — null for Cash and legacy rows.
+    public string? PaymentRefNo { get; set; }
     // POS | Online
     public string Channel { get; set; } = "POS";
     public int LoyaltyPointsEarned { get; set; }
