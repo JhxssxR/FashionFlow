@@ -109,7 +109,7 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, IConfi
                 Name = name,
                 Email = email,
                 Tier = "Bronze",
-                JoinedDate = DateOnly.FromDateTime(DateTime.Today),
+                JoinedDate = PhTime.Date,
                 Address = req.Address?.Trim() ?? "",
                 Barangay = req.Barangay?.Trim() ?? "",
                 City = req.City?.Trim() ?? "",
@@ -195,7 +195,7 @@ public class AuthController(FashionFlowDbContext db, TokenService tokens, IConfi
                     Name = fb.Name,
                     Email = email,
                     Tier = "Bronze",
-                    JoinedDate = DateOnly.FromDateTime(DateTime.Today)
+                    JoinedDate = PhTime.Date
                 };
                 db.Customers.Add(customer);
                 await db.SaveChangesAsync(); // need the CustomerId for the user link

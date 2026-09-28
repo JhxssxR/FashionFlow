@@ -56,7 +56,7 @@ public class SupplierPricesController(FashionFlowDbContext db) : ControllerBase
         }
         row.UnitCost = req.UnitCost;
         row.DiscountPct = req.DiscountPct;
-        row.UpdatedAt = DateTime.Now;
+        row.UpdatedAt = PhTime.Now;
         db.SystemLogs.Add(Audit.Log(User.Email(),
             $"Price list: {supplier.Name} — {product.Name} at ₱{req.UnitCost:N0} (−{req.DiscountPct}%)", "Purchasing"));
         await db.SaveChangesAsync();

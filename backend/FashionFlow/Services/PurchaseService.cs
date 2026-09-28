@@ -20,7 +20,7 @@ public static class PurchaseService
     public static async Task ReceiveAsync(FashionFlowDbContext db, PurchaseOrder po, string actorEmail)
     {
         po.Status = "Delivered";
-        po.DeliveredDate = DateOnly.FromDateTime(DateTime.Today);
+        po.DeliveredDate = PhTime.Date;
 
         var product = await db.Products.FirstAsync(p => p.ProductId == po.ProductId);
         product.Stock += po.Quantity;
@@ -33,7 +33,7 @@ public static class PurchaseService
             ProductId = po.ProductId,
             Quantity = po.Quantity,
             Direction = "In",
-            Date = DateTime.Now,
+            Date = PhTime.Now,
             Reference = po.PONumber
         });
 

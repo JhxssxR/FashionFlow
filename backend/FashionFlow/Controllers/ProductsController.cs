@@ -129,7 +129,7 @@ public class ProductsController(FashionFlowDbContext db) : ControllerBase
                 ProductId = product.ProductId,
                 Quantity = Math.Abs(req.Stock - oldStock),
                 Direction = req.Stock > oldStock ? "In" : "Out",
-                Date = DateTime.Now,
+                Date = PhTime.Now,
                 Reference = "Adjustment"
             });
             db.SystemLogs.Add(Audit.Log(User.Email(),

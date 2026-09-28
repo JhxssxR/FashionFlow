@@ -27,7 +27,7 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
     [HttpGet("sales-summary")]
     public async Task<IActionResult> SalesSummary([FromQuery] int days = 30, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        var end = to ?? DateOnly.FromDateTime(DateTime.Today);
+        var end = to ?? PhTime.Date;
         DateOnly startDate;
         if (from is not null)
         {
@@ -110,7 +110,7 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
     [Authorize(Roles = "Admin,PurchasingOfficer,Accountant")]
     public async Task<IActionResult> PurchasingSummary([FromQuery] int days = 14, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        var end = to ?? DateOnly.FromDateTime(DateTime.Today);
+        var end = to ?? PhTime.Date;
         DateOnly startDate;
         if (from is not null)
         {
@@ -153,13 +153,13 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
     [Authorize(Roles = "Admin,Accountant")]
     public async Task<IActionResult> FinancialSummary([FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        var endDate = to ?? DateOnly.FromDateTime(DateTime.Today);
+        var endDate = to ?? PhTime.Date;
         var startDate = from ?? endDate.AddDays(-13);
         if (startDate > endDate) (startDate, endDate) = (endDate, startDate);
         if (endDate.DayNumber - startDate.DayNumber > 89) startDate = endDate.AddDays(-89);
         var spanDays = endDate.DayNumber - startDate.DayNumber + 1;
         var start14 = startDate.ToDateTime(TimeOnly.MinValue);
-        var yearStart = new DateTime(DateTime.Now.Year, 1, 1);
+        var yearStart = new DateTime(PhTime.Now.Year, 1, 1);
 
         var sales = await db.Sales.Where(s => s.Date >= yearStart)
             .Select(s => new { s.Date, s.TotalAmount }).ToListAsync();
@@ -176,12 +176,12 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
             return new { date = DayLabel(day), fullDate = day.ToString("yyyy-MM-dd"), revenue, expenses, profit = revenue - expenses };
         }).ToList();
 
-        var monthly = Enumerable.Range(0, DateTime.Now.Month).Select(i =>
+        var monthly = Enumerable.Range(0, PhTime.Now.Month).Select(i =>
         {
             var month = i + 1;
             var revenue = sales.Where(s => s.Date.Month == month).Sum(s => s.TotalAmount);
             var expenses = pos.Where(p => p.IssuedDate.Month == month).Sum(p => p.Amount);
-            var label = month == DateTime.Now.Month ? $"{MonthLabels[i]} (to date)" : MonthLabels[i];
+            var label = month == PhTime.Now.Month ? $"{MonthLabels[i]} (to date)" : MonthLabels[i];
             return new { month = label, revenue, expenses };
         }).ToList();
 
@@ -211,8 +211,8 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
             })
             .ToListAsync();
 
-        var todayRevenue = sales.Where(s => s.Date.Date == DateTime.Today).Sum(s => s.TotalAmount);
-        var todaySpend = pos.Where(p => p.IssuedDate == DateOnly.FromDateTime(DateTime.Today)).Sum(p => p.Amount);
+        var todayRevenue = sales.Where(s => s.Date.Date == PhTime.Today).Sum(s => s.TotalAmount);
+        var todaySpend = pos.Where(p => p.IssuedDate == PhTime.Date).Sum(p => p.Amount);
 
         return Ok(new
         {
@@ -253,7 +253,7 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
             .ToList();
 
         var movements = await db.StockMovements.ToListAsync();
-        var last7 = DateTime.Today.AddDays(-6);
+        var last7 = PhTime.Today.AddDays(-6);
         var ins = movements.Where(m => m.Date >= last7 && m.Direction == "In").Sum(m => m.Quantity);
         var outs = movements.Where(m => m.Date >= last7 && m.Direction == "Out").Sum(m => m.Quantity);
 
@@ -297,7 +297,7 @@ public class ReportsController(FashionFlowDbContext db) : ControllerBase
         {
             Title = req.Title.Trim(),
             Type = type,
-            Date = DateTime.Now,
+            Date = PhTime.Now,
             GeneratedBy = User.Email()
         };
 

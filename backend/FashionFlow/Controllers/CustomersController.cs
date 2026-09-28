@@ -62,7 +62,7 @@ public class CustomersController(FashionFlowDbContext db) : ControllerBase
             Email = email,
             Tier = "Bronze",
             LoyaltyPoints = 0,
-            JoinedDate = DateOnly.FromDateTime(DateTime.Today)
+            JoinedDate = PhTime.Date
         };
         db.Customers.Add(customer);
         db.SystemLogs.Add(Audit.Log(User.Email(), $"Customer registered: {customer.Name} ({customer.Email})", "Sales"));

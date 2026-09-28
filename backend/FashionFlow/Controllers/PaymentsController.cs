@@ -114,7 +114,7 @@ public class PaymentsController(
             appliedPromo = await db.Promotions.FirstOrDefaultAsync(p => p.Code == code);
             if (appliedPromo is null)
                 return NotFound(new { message = "Promo code does not exist." });
-            var ineligible = PromoRules.CheckEligible(appliedPromo, DateTime.Now, customer.Tier);
+            var ineligible = PromoRules.CheckEligible(appliedPromo, PhTime.Now, customer.Tier);
             if (ineligible is not null)
                 return BadRequest(new { message = ineligible });
             var belowMinimum = PromoRules.CheckMinSpend(appliedPromo, subtotal);
@@ -145,7 +145,7 @@ public class PaymentsController(
             Total = subtotal - discount,
             Status = "Pending",
             PaymentMethod = chosen.Label,
-            CreatedAt = DateTime.Now
+            CreatedAt = PhTime.Now
         };
         foreach (var (productId, qty) in merged)
         {
@@ -196,7 +196,7 @@ public class PaymentsController(
                     ProductId = productId,
                     Quantity = qty,
                     Direction = "Out",
-                    Date = DateTime.Now,
+                    Date = PhTime.Now,
                     Reference = orderNumber
                 });
             }
@@ -404,7 +404,7 @@ public class PaymentsController(
 
         order.PaymentRefNo = refNo;
         order.Status = "Awaiting Verification";
-        order.ProofSubmittedAt = DateTime.Now;
+        order.ProofSubmittedAt = PhTime.Now;
         db.SystemLogs.Add(Audit.Log(User.Email(),
             $"Payment proof submitted for {order.OrderNumber} — ref {refNo} (₱{order.Total:N0})", "Sales"));
         await Notifications.PushRolesAsync(db, ["Admin", "SalesStaff"],
@@ -573,7 +573,7 @@ public class PaymentsController(
         // If Cash on Delivery reaches Delivered, the courier collected the payment — record Sale & loyalty now!
         if (isCod && req.Status == "Delivered" && order.PaidAt == null)
         {
-            order.PaidAt = DateTime.Now;
+            order.PaidAt = PhTime.Now;
 
             var customer = order.CustomerId is int cid ? await db.Customers.FindAsync(cid) : null;
             var pointsEarned = customer is null ? 0 : LoyaltyRules.PointsFor(order.Total);
@@ -590,7 +590,7 @@ public class PaymentsController(
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
                     TotalAmount = item.UnitPrice * item.Quantity,
-                    Date = DateTime.Now,
+                    Date = PhTime.Now,
                     PaymentMethod = "Cash on Delivery",
                     Channel = "Online",
                     LoyaltyPointsEarned = pointsEarned / itemCount
@@ -604,7 +604,7 @@ public class PaymentsController(
                     CustomerId = customer.CustomerId,
                     PointsEarned = pointsEarned,
                     PointsRedeemed = 0,
-                    Date = DateTime.Now,
+                    Date = PhTime.Now,
                     Note = $"Earned from {order.OrderNumber} (COD collected)"
                 });
                 customer.LoyaltyPoints += pointsEarned;

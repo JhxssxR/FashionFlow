@@ -8,5 +8,5 @@ namespace FashionFlow.Services;
 public static class Audit
 {
     public static SystemLog Log(string email, string action, string type) =>
-        new() { Time = DateTime.Now, UserEmail = email, Action = action, Type = type };
+        new() { Time = PhTime.Now, UserEmail = email, Action = action, Type = type };
 }

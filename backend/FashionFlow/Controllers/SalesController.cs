@@ -51,7 +51,7 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
     {
         // Optional day picker (yyyy-MM-dd): stats + hourly bars for any day,
         // with the previous day as the comparison baseline.
-        var today = (date ?? DateOnly.FromDateTime(DateTime.Today)).ToDateTime(TimeOnly.MinValue);
+        var today = (date ?? PhTime.Date).ToDateTime(TimeOnly.MinValue);
         var sales = await db.Sales
             .Where(s => s.Date >= today || (s.Date >= today.AddDays(-1) && s.Date < today))
             .ToListAsync();
@@ -98,8 +98,8 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
     [Authorize(Roles = "Admin,SalesStaff,Accountant")]
     public async Task<IActionResult> Range([FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-        var start = (from ?? DateTime.Today).Date;
-        var end = (to ?? DateTime.Today).Date.AddDays(1);
+        var start = (from ?? PhTime.Today).Date;
+        var end = (to ?? PhTime.Today).Date.AddDays(1);
 
         var rows = await db.Sales.Include(s => s.Customer)
             .Where(s => s.Date >= start && s.Date < end)
@@ -203,7 +203,7 @@ public class SalesController(FashionFlowDbContext db, SaleService sales) : Contr
             promo = await db.Promotions.FirstOrDefaultAsync(p => p.Code == code);
             if (promo is null)
                 return NotFound(new { message = $"Promo code {code} does not exist." });
-            var ineligible = PromoRules.CheckEligible(promo, DateTime.Now, customer?.Tier);
+            var ineligible = PromoRules.CheckEligible(promo, PhTime.Now, customer?.Tier);
             if (ineligible is not null)
                 return Conflict(new { message = ineligible });
             var belowMinimum = PromoRules.CheckMinSpend(promo, subtotal);

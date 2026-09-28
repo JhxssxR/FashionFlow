@@ -109,8 +109,8 @@ public class LoyaltyController(FashionFlowDbContext db) : ControllerBase
                 DiscountType = reward.Value.Type,
                 DiscountValue = reward.Value.Value,
                 AppliesTo = "All",
-                ValidFrom = DateOnly.FromDateTime(DateTime.Today),
-                ValidTo = DateOnly.FromDateTime(DateTime.Today.AddDays(30)),
+                ValidFrom = PhTime.Date,
+                ValidTo = DateOnly.FromDateTime(PhTime.Today.AddDays(30)),
                 Uses = 0,
                 IsActive = true
             });
@@ -122,7 +122,7 @@ public class LoyaltyController(FashionFlowDbContext db) : ControllerBase
             CustomerId = customerId.Value,
             PointsEarned = 0,
             PointsRedeemed = points,
-            Date = DateTime.Now,
+            Date = PhTime.Now,
             Note = note
         });
         db.SystemLogs.Add(Audit.Log(User.Email(), $"Loyalty redemption: {points} points by {customer.Name}", "Sales"));
@@ -131,7 +131,7 @@ public class LoyaltyController(FashionFlowDbContext db) : ControllerBase
         Notifications.Push(db, User.UserId(),
             reward is not null ? $"Voucher issued: {reward.Value.Title}" : $"{points} points redeemed",
             reward is not null
-                ? $"Code {voucherCode} — saved under My Promotions. Valid until {DateOnly.FromDateTime(DateTime.Today.AddDays(30)).ToString("MMM d, yyyy")}."
+                ? $"Code {voucherCode} — saved under My Promotions. Valid until {DateOnly.FromDateTime(PhTime.Today.AddDays(30)).ToString("MMM d, yyyy")}."
                 : note,
             "Loyalty", "dashboard/customer");
 
@@ -144,7 +144,7 @@ public class LoyaltyController(FashionFlowDbContext db) : ControllerBase
             tier = customer.Tier,
             code = voucherCode,
             title = reward?.Title,
-            validTo = reward is not null ? DateOnly.FromDateTime(DateTime.Today.AddDays(30)).ToString("yyyy-MM-dd") : null
+            validTo = reward is not null ? DateOnly.FromDateTime(PhTime.Today.AddDays(30)).ToString("yyyy-MM-dd") : null
         });
     }
 

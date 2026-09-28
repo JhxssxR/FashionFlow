@@ -21,7 +21,7 @@ public class PromotionsController(FashionFlowDbContext db) : ControllerBase
         validFrom = p.ValidFrom.ToString("yyyy-MM-dd"),
         validTo = p.ValidTo.ToString("yyyy-MM-dd"),
         p.Uses,
-        status = p.Status(DateTime.Today)
+        status = p.Status(PhTime.Today)
     };
 
     [HttpGet]
@@ -37,7 +37,7 @@ public class PromotionsController(FashionFlowDbContext db) : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Active()
     {
-        var today = DateTime.Today;
+        var today = PhTime.Today;
         var rows = await db.Promotions
             .Where(p => p.IsActive && p.ValidFrom.ToDateTime(TimeOnly.MinValue) <= today
                                         && p.ValidTo.ToDateTime(TimeOnly.MinValue) >= today)
@@ -98,7 +98,7 @@ public class PromotionsController(FashionFlowDbContext db) : ControllerBase
         if (promo is null)
             return NotFound(new { valid = false, discount = 0m, message = "Promo code does not exist." });
 
-        var ineligible = PromoRules.CheckEligible(promo, DateTime.Now, req.CustomerTier);
+        var ineligible = PromoRules.CheckEligible(promo, PhTime.Now, req.CustomerTier);
         if (ineligible is not null)
             return Ok(new { valid = false, discount = 0m, message = ineligible });
 

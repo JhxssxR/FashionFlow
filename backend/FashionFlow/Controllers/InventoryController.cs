@@ -66,7 +66,7 @@ public class InventoryController(FashionFlowDbContext db) : ControllerBase
             ProductId = product.ProductId,
             Quantity = Math.Abs(req.NewQuantity - old),
             Direction = req.NewQuantity > old ? "In" : "Out",
-            Date = DateTime.Now,
+            Date = PhTime.Now,
             Reference = "Adjustment"
         });
         db.SystemLogs.Add(Audit.Log(User.Email(),
@@ -136,7 +136,7 @@ public class InventoryController(FashionFlowDbContext db) : ControllerBase
     [Authorize(Roles = "Admin,InventoryManager,Accountant")]
     public async Task<IActionResult> MovementSeries([FromQuery] int days = 14, [FromQuery] DateOnly? from = null, [FromQuery] DateOnly? to = null)
     {
-        var end = to ?? DateOnly.FromDateTime(DateTime.Today);
+        var end = to ?? PhTime.Date;
         DateOnly startDate;
         if (from is not null)
         {

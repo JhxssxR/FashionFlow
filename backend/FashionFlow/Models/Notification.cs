@@ -1,3 +1,5 @@
+using FashionFlow.Services;
+
 namespace FashionFlow.Models;
 
 // One in-app notification for one recipient (Users.UserId). Events fan out a
@@ -16,5 +18,5 @@ public class Notification
     // ("dashboard/customer/orders", "dashboard/purchasing/tracking", …).
     public string? Link { get; set; }
     public bool IsRead { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime CreatedAt { get; set; } = PhTime.Now;
 }

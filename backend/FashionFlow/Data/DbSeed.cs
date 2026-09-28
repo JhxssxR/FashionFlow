@@ -1,4 +1,5 @@
 using FashionFlow.Models;
+using FashionFlow.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace FashionFlow.Data;
@@ -47,7 +48,7 @@ public static class DbSeed
             Name = "Bea Mendoza",
             Email = "customer@fashionflow.com",
             Tier = "Bronze",
-            JoinedDate = DateOnly.FromDateTime(DateTime.Today)
+            JoinedDate = PhTime.Date
         };
         db.Customers.Add(bea);
         await db.SaveChangesAsync();
@@ -453,7 +454,7 @@ public static class DbSeed
                         ProductId = p.ProductId,
                         UnitCost = Math.Round(p.Price * 0.65m),
                         DiscountPct = discount,
-                        UpdatedAt = DateTime.Now
+                        UpdatedAt = PhTime.Now
                     });
                     existing.Add(s.SupplierId * 1000000 + p.ProductId);
                 }

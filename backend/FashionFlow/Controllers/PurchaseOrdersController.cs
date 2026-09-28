@@ -51,7 +51,7 @@ public class PurchaseOrdersController(FashionFlowDbContext db) : ControllerBase
         if (supplier is null || product is null)
             return NotFound(new { message = "Supplier or product not found." });
 
-        var year = DateTime.Now.Year;
+        var year = PhTime.Now.Year;
         var prefix = $"PO-{year}-";
         var existing = await db.PurchaseOrders
             .Where(p => p.PONumber.StartsWith(prefix))
@@ -69,7 +69,7 @@ public class PurchaseOrdersController(FashionFlowDbContext db) : ControllerBase
             UnitCost = req.UnitCost,
             Amount = req.Quantity * req.UnitCost,
             Status = "Pending",
-            IssuedDate = DateOnly.FromDateTime(DateTime.Today),
+            IssuedDate = PhTime.Date,
             Eta = req.Eta
         };
         db.PurchaseOrders.Add(po);

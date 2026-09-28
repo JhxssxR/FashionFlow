@@ -54,7 +54,7 @@ public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
             paymentMethod: paymentMethod,
             channel: "Online",
             receiptNo: order.OrderNumber,
-            when: DateTime.Now,
+            when: PhTime.Now,
             discount: order.Discount,
             actorEmail);
 
@@ -67,7 +67,7 @@ public class OrderFulfillmentService(FashionFlowDbContext db, SaleService sales)
         }
 
         order.Status = "Paid";
-        order.PaidAt = DateTime.Now;
+        order.PaidAt = PhTime.Now;
         db.SystemLogs.Add(Audit.Log(actorEmail,
             $"Payment received for {order.OrderNumber} — fulfilled as sales (₱{total:N0})", "Sales"));
 
