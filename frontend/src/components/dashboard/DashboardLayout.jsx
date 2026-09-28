@@ -133,13 +133,28 @@ const DashboardLayout = ({ role, user, children }) => {
     return () => window.removeEventListener('hashchange', handleHash);
   }, [config, role]);
 
-  // Lock background scroll while the mobile sidebar is open — the page
-  // behind must not move, only the sidebar nav itself scrolls.
+  // Lock background scroll while the mobile sidebar is open — overflow
+  // alone doesn't stop iOS/Android from dragging the page behind the
+  // drawer, so pin the body itself and restore the exact position after.
+  const savedScrollY = React.useRef(0);
   React.useEffect(() => {
     if (!navOpen) return undefined;
-    const prev = document.body.style.overflow;
+    savedScrollY.current = window.scrollY;
+    const prevOverflow = document.body.style.overflow;
+    const prevPosition = document.body.style.position;
+    const prevTop = document.body.style.top;
+    const prevWidth = document.body.style.width;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${savedScrollY.current}px`;
+    document.body.style.width = '100%';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.position = prevPosition;
+      document.body.style.top = prevTop;
+      document.body.style.width = prevWidth;
+      window.scrollTo(0, savedScrollY.current);
+    };
   }, [navOpen]);
 
   // Escape closes the sign-out confirmation.
@@ -173,6 +188,9 @@ const DashboardLayout = ({ role, user, children }) => {
   };
 
   const currentPage = config.pages.find((p) => p.id === activePage) || config.pages[0];
+  // Only store-facing roles (customers, suppliers) get a way back to the
+  // shop — staff dashboards have no store context to return to.
+  const showStoreLink = role === 'customer' || role === 'supplier';
 
   const setPage = (pageId) => {
     window.location.hash = `dashboard/${role}/${pageId}`;
@@ -184,17 +202,29 @@ const DashboardLayout = ({ role, user, children }) => {
     window.location.hash = '';
   };
 
+  // Brand tap: store-facing roles go to the shop; staff land on their
+  // dashboard overview (no more accidental trips to the landing page).
+  const goBrand = (e) => {
+    e.preventDefault();
+    if (role === 'customer' || role === 'supplier') {
+      window.location.hash = '';
+    } else {
+      setPage(config.activePage);
+    }
+    setNavOpen(false);
+  };
+
   const logout = () => {
     clearAuth();
     clearCartStorage();
-    window.location.hash = 'login';
+    window.location.hash = '';
   };
 
   return (
     <div className={`dash-shell${navOpen ? ' nav-open' : ''}${!isMobile && collapsed ? ' nav-collapsed' : ''}`}>
       {navOpen && <div className="dash-backdrop" onClick={() => setNavOpen(false)} />}
       <aside className="dash-sidebar">
-        <a href="#" className="dash-brand" onClick={goStore}>
+        <a href="#" className="dash-brand" onClick={goBrand}>
           <img src="/assets/no background logo.png" alt="FashionFlow" />
         </a>
 
@@ -220,12 +250,14 @@ const DashboardLayout = ({ role, user, children }) => {
               <span>{config.label}</span>
             </div>
           </div>
-          <a href="#" className="dash-back-link dash-signout" onClick={(e) => { e.preventDefault(); setConfirmSignout(true); }}>
+          <a href="#" className="dash-back-link dash-signout" onClick={(e) => { e.preventDefault(); setNavOpen(false); setConfirmSignout(true); }}>
             SIGN OUT
           </a>
+          {showStoreLink && (
           <a href="#" className="dash-back-link" onClick={goStore}>
             &larr; BACK TO STORE
           </a>
+          )}
         </div>
       </aside>
 
@@ -268,7 +300,7 @@ const DashboardLayout = ({ role, user, children }) => {
             <button className="product-modal-close" onClick={() => setConfirmSignout(false)} aria-label="Close">×</button>
             <h3>Sign out?</h3>
             <p className="receipt-meta">
-              {user?.name ? `${user.name}, you` : 'You'} will be signed out and returned to the login page.
+              {user?.name ? `${user.name}, you` : 'You'} will be signed out and returned to the storefront.
             </p>
             <div className="verify-btns center" style={{ marginTop: 16 }}>
               <button type="button" className="mini-btn" onClick={() => setConfirmSignout(false)}>
